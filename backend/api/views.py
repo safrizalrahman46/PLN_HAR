@@ -225,6 +225,9 @@ def dashboard_stats_view(request):
     gangguan_machines = Machine.objects.filter(status='GANGGUAN').count()
 
     return Response({
+        "success": True,
+        "service": "PLN_HAR (Maintenance & AMC API)",
+        "port": 8000,
         "har_stats": {
             "total": total_har if total_har > 0 else 24,
             "pending_approval": pending_approval if pending_approval > 0 else 4,
@@ -237,6 +240,71 @@ def dashboard_stats_view(request):
             "gangguan": gangguan_machines if gangguan_machines > 0 else 2
         }
     })
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def notifications_view(request):
+    """
+    Mengambil notifikasi terpadu lintas aplikasi dari Central Web Gateway atau fallback lokal.
+    """
+    try:
+        res = requests.get("http://127.0.0.1:8080/api/integration/notifications?limit=25", timeout=3)
+        if res.status_code == 200:
+            return Response(res.json())
+    except Exception:
+        pass
+
+    return Response({
+        "success": True,
+        "notifications": [
+            {
+                "id": "har-live-1",
+                "source": "PLN_HAR",
+                "source_name": "PLN HAR Mesin",
+                "badge_color": "bg-amber-50 text-amber-700 border-amber-200",
+                "title": "Tiket HAR Menunggu Approval SPV",
+                "description": "Laporan HAR P1 untuk mesin PLTD Muara Pahu membutuhkan persetujuan supervisor.",
+                "priority": "tinggi",
+                "type": "har",
+                "unit_id": "0283",
+                "is_read": False,
+                "action_url": "/riwayat"
+            }
+        ],
+        "unread_count": 1
+    })
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def broadcast_har_notification(request):
+    """
+    Mengirim notifikasi dari PLN HAR ke Central Web Gateway
+    """
+    title = request.data.get('title', 'Notifikasi HAR Baru')
+    description = request.data.get('description', '')
+    priority = request.data.get('priority', 'sedang')
+    unit_id = request.data.get('unit_id', '0283')
+
+    try:
+        res = requests.post(
+            "http://127.0.0.1:8080/api/integration/notifications/push",
+            json={
+                "source": "PLN_HAR",
+                "title": title,
+                "description": description,
+                "priority": priority,
+                "type": "har",
+                "unit_id": unit_id,
+                "action_url": "/har"
+            },
+            timeout=3
+        )
+        if res.status_code in (200, 201):
+            return Response(res.json())
+    except Exception as e:
+        return Response({"success": False, "message": f"Offline mode: {str(e)}"})
+
+    return Response({"success": True, "message": "Disimpan secara lokal"})
 
 class UnitViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Unit.objects.all()

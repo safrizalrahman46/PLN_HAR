@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     login_view, format_logsheet_view, post_logsheet_view,
     logsheet_report_matrix_view, dashboard_stats_view,
+    notifications_view, broadcast_har_notification,
     UnitViewSet, MachineViewSet, HARReportViewSet, AMCReportViewSet
 )
 
@@ -18,5 +19,9 @@ urlpatterns = [
     path('v1/logsheet-pltd', post_logsheet_view),
     path('logsheet', logsheet_report_matrix_view),
     path('dashboard/stats', dashboard_stats_view),
+    path('dashboard-stats/', dashboard_stats_view),
+    path('summary/', dashboard_stats_view),
+    path('notifications/', notifications_view),
+    path('notifications/broadcast/', broadcast_har_notification),
     path('', include(router.urls)),
 ]
