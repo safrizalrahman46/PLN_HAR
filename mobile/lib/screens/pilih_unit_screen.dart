@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../models/models.dart';
+import '../data/api_service.dart';
 import 'dashboard_screen.dart';
 
 class PilihUnitScreen extends StatefulWidget {
@@ -10,213 +12,430 @@ class PilihUnitScreen extends StatefulWidget {
 }
 
 class _PilihUnitScreenState extends State<PilihUnitScreen> {
-  String selectedRegion = 'Kalimantan 3';
-  String selectedArea = 'Site Bontang';
-  String selectedUnit = 'ULD Batu Ampar';
-  bool _isLoading = false;
+  List<UnitModel> _allUnits = [];
+  String _selectedArea = 'Semua Area';
+  final TextEditingController _searchController = TextEditingController();
+  UnitModel? _selectedUnit;
+  bool _isLoading = true;
+  User? _currentUser;
 
-  void _handleLanjutkan() {
-    setState(() => _isLoading = true);
-    Future.delayed(const Duration(milliseconds: 600), () {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _loadData() async {
+    final user = await ApiService.getCurrentUser();
+    final units = await ApiService.getUnits();
+    final currentUnit = await ApiService.getSelectedUnit();
+
+    if (mounted) {
+      setState(() {
+        _currentUser = user;
+        _allUnits = units;
+        _selectedUnit = units.firstWhere(
+          (u) => u.kdUnit == currentUnit.kdUnit,
+          orElse: () => units.first,
         );
-      }
-    });
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _handleLanjutkan() async {
+    if (_selectedUnit == null) return;
+    setState(() => _isLoading = true);
+    await ApiService.saveSelectedUnit(_selectedUnit!);
+    if (mounted) {
+      setState(() => _isLoading = false);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pilih Unit Kerja'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.primary),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Pilih Lokasi Kerja',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.primary),
-              ),
-              const Text(
-                'Pilih lokasi sebelum memulai HAR atau Input Logsheet WACB',
-                style: TextStyle(fontSize: 12, color: AppTheme.outline),
-              ),
-              const SizedBox(height: 20),
+    final areas = ['Semua Area', 'SITE BONTANG', 'SITE BERAU'];
+    final query = _searchController.text.toLowerCase().trim();
 
-              // Step Indicator
-              Row(
+    final filteredUnits = _allUnits.where((u) {
+      final matchesArea = _selectedArea == 'Semua Area' || u.namaArea.toUpperCase() == _selectedArea.toUpperCase();
+      final matchesSearch = query.isEmpty ||
+          u.namaUnit.toLowerCase().contains(query) ||
+          u.kdUnit.toLowerCase().contains(query) ||
+          u.namaArea.toLowerCase().contains(query);
+      return matchesArea && matchesSearch;
+    }).toList();
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F7FB),
+      appBar: AppBar(
+        title: const Text('Pilih Unit Layanan PLTD'),
+        elevation: 0,
+        actions: [
+          if (_currentUser != null)
+            Container(
+              margin: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
                 children: [
-                  Expanded(child: Container(height: 4, color: AppTheme.primary)),
+                  const Icon(Icons.bolt, size: 14, color: AppTheme.primary),
                   const SizedBox(width: 4),
-                  Expanded(child: Container(height: 4, color: AppTheme.outlineVariant)),
-                  const SizedBox(width: 4),
-                  Expanded(child: Container(height: 4, color: AppTheme.outlineVariant)),
+                  Text(
+                    _currentUser!.role.toUpperCase(),
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: AppTheme.primary),
+                  ),
                 ],
               ),
-              const SizedBox(height: 24),
-
-              // Dropdown Region
-              const Text('Region / Wilayah', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primary)),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.outlineVariant),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: selectedRegion,
-                    isExpanded: true,
-                    items: ['Kalimantan 3', 'Kalimantan 1', 'Kalimantan 2']
-                        .map((r) => DropdownMenuItem(value: r, child: Text(r)))
-                        .toList(),
-                    onChanged: (val) => setState(() => selectedRegion = val!),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Dropdown Area
-              const Text('Area / Site', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primary)),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.outlineVariant),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: selectedArea,
-                    isExpanded: true,
-                    items: ['Site Bontang', 'Site Sangatta', 'Site Berau']
-                        .map((a) => DropdownMenuItem(value: a, child: Text(a)))
-                        .toList(),
-                    onChanged: (val) => setState(() => selectedArea = val!),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Dropdown Unit
-              const Text('Unit / ULD', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primary)),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.outlineVariant),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: selectedUnit,
-                    isExpanded: true,
-                    items: ['ULD Batu Ampar', 'ULD Muara Wahau', 'ULD Biduk-Biduk']
-                        .map((u) => DropdownMenuItem(value: u, child: Text(u)))
-                        .toList(),
-                    onChanged: (val) => setState(() => selectedUnit = val!),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Summary Card
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppTheme.outlineVariant),
-                  boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
-                ),
-                child: Column(
-                  children: [
-                    Row(
+            ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
+          : Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // User Context Card
                         Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: AppTheme.secondaryContainer,
-                            borderRadius: BorderRadius.circular(12),
+                            gradient: AppTheme.plnHeroGradient,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: AppTheme.cardShadow,
                           ),
-                          child: const Icon(Icons.location_on, color: AppTheme.onSecondaryContainer),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          child: Row(
                             children: [
-                              Text(
-                                selectedUnit,
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primary),
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.power_rounded, color: Colors.white, size: 26),
                               ),
-                              Text(
-                                '$selectedArea, $selectedRegion',
-                                style: const TextStyle(fontSize: 12, color: AppTheme.outline),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _currentUser?.name ?? 'Teknisi PLTD',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Regional Kalimantan 3 • Divisi Keandalan Pembangkit',
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(alpha: 0.85),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              const SizedBox(height: 4),
-                              const Row(
-                                children: [
-                                  Icon(Icons.verified, size: 14, color: AppTheme.primary),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    'Unit Terverifikasi WACB',
-                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primary),
-                                  ),
-                                ],
-                              )
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
+                        const SizedBox(height: 18),
 
-              // Action Button
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleLanjutkan,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        // Search Input
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: AppTheme.softShadow,
+                          ),
+                          child: TextField(
+                            controller: _searchController,
+                            onChanged: (_) => setState(() {}),
+                            decoration: InputDecoration(
+                              hintText: 'Cari nama unit PLTD atau kode unit...',
+                              prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.outline),
+                              suffixIcon: _searchController.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear_rounded, size: 18),
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        setState(() {});
+                                      },
+                                    )
+                                  : null,
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Area Filter Chips
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: areas.map((area) {
+                              final isSelected = _selectedArea == area;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: GestureDetector(
+                                  onTap: () => setState(() => _selectedArea = area),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: isSelected ? AppTheme.primary : Colors.white,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: isSelected ? AppTheme.primary : AppTheme.outlineVariant,
+                                      ),
+                                      boxShadow: isSelected ? AppTheme.glowShadow : AppTheme.softShadow,
+                                    ),
+                                    child: Text(
+                                      area,
+                                      style: TextStyle(
+                                        color: isSelected ? Colors.white : AppTheme.outline,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+
+                        // Section Title
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Lanjutkan ke Dashboard', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                            SizedBox(width: 8),
-                            Icon(Icons.chevron_right),
+                            const Text(
+                              'Daftar Unit Tersedia',
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.textDark),
+                            ),
+                            Text(
+                              '${filteredUnits.length} Unit',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.outline),
+                            ),
                           ],
                         ),
+                        const SizedBox(height: 10),
+
+                        // Unit Cards
+                        ...filteredUnits.map((unit) {
+                          final isSelected = _selectedUnit?.kdUnit == unit.kdUnit;
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: isSelected ? const Color(0xFFF0F9FF) : Colors.white,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: isSelected ? AppTheme.primary : AppTheme.outlineVariant,
+                                width: isSelected ? 2 : 1,
+                              ),
+                              boxShadow: isSelected ? AppTheme.glowShadow : AppTheme.softShadow,
+                            ),
+                            child: InkWell(
+                              onTap: () => setState(() => _selectedUnit = unit),
+                              borderRadius: BorderRadius.circular(18),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 48,
+                                      height: 48,
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? AppTheme.primary
+                                            : AppTheme.primary.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: Icon(
+                                        Icons.electric_bolt_rounded,
+                                        color: isSelected ? Colors.white : AppTheme.primary,
+                                        size: 24,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  unit.namaUnit,
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.w800,
+                                                    fontSize: 14,
+                                                    color: isSelected ? AppTheme.primaryDark : AppTheme.textDark,
+                                                  ),
+                                                ),
+                                              ),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: isSelected
+                                                      ? AppTheme.primary.withValues(alpha: 0.15)
+                                                      : AppTheme.surfaceContainer,
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                child: Text(
+                                                  'ID ${unit.kdUnit}',
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: isSelected ? AppTheme.primary : AppTheme.outline,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.location_on_rounded, size: 13, color: AppTheme.outline),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                unit.namaArea,
+                                                style: const TextStyle(fontSize: 11, color: AppTheme.outline),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Container(
+                                                width: 5,
+                                                height: 5,
+                                                decoration: const BoxDecoration(
+                                                  color: AppTheme.accentGreen,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 5),
+                                              const Text(
+                                                'Online & Andal',
+                                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.accentGreen),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Container(
+                                      width: 24,
+                                      height: 24,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: isSelected ? AppTheme.primary : Colors.transparent,
+                                        border: Border.all(
+                                          color: isSelected ? AppTheme.primary : AppTheme.outlineVariant,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: isSelected
+                                          ? const Icon(Icons.check, size: 16, color: Colors.white)
+                                          : null,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
                 ),
-              )
-            ],
-          ),
-        ),
-      ),
+
+                // Bottom Sticky Floating Bar
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 16,
+                        offset: const Offset(0, -4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('Unit Terpilih:', style: TextStyle(fontSize: 10, color: AppTheme.outline)),
+                            Text(
+                              _selectedUnit?.namaUnit ?? 'Belum Dipilih',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14,
+                                color: AppTheme.primaryDark,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Container(
+                        height: 48,
+                        decoration: BoxDecoration(
+                          gradient: AppTheme.plnElectricGradient,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: AppTheme.glowShadow,
+                        ),
+                        child: ElevatedButton.icon(
+                          onPressed: _selectedUnit == null ? null : _handleLanjutkan,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          icon: const Text('Buka Dashboard', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                          label: const Icon(Icons.arrow_forward_rounded, size: 18),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }
