@@ -4,6 +4,10 @@ class User {
   final String role;
   final String token;
   final String kdRegion;
+  final String bio;
+  final String avatarPreset;
+  final String phone;
+  final String? password;
 
   User({
     required this.username,
@@ -11,7 +15,35 @@ class User {
     required this.role,
     required this.token,
     this.kdRegion = '05',
+    this.bio = 'Teknisi Operasi & Pemeliharaan Pembangkit PLTD',
+    this.avatarPreset = '1',
+    this.phone = '0812-3456-7890',
+    this.password,
   });
+
+  User copyWith({
+    String? username,
+    String? name,
+    String? role,
+    String? token,
+    String? kdRegion,
+    String? bio,
+    String? avatarPreset,
+    String? phone,
+    String? password,
+  }) {
+    return User(
+      username: username ?? this.username,
+      name: name ?? this.name,
+      role: role ?? this.role,
+      token: token ?? this.token,
+      kdRegion: kdRegion ?? this.kdRegion,
+      bio: bio ?? this.bio,
+      avatarPreset: avatarPreset ?? this.avatarPreset,
+      phone: phone ?? this.phone,
+      password: password ?? this.password,
+    );
+  }
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
@@ -20,6 +52,10 @@ class User {
       role: json['role'] ?? 'superadmin',
       token: json['token'] ?? 'superadmin-token',
       kdRegion: json['kd_region'] ?? '05',
+      bio: json['bio'] ?? 'Teknisi Operasi & Pemeliharaan Pembangkit PLTD',
+      avatarPreset: json['avatar_preset'] ?? '1',
+      phone: json['phone'] ?? '0812-3456-7890',
+      password: json['password'],
     );
   }
 
@@ -29,6 +65,10 @@ class User {
     'role': role,
     'token': token,
     'kd_region': kdRegion,
+    'bio': bio,
+    'avatar_preset': avatarPreset,
+    'phone': phone,
+    if (password != null) 'password': password,
   };
 }
 

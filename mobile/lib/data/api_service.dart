@@ -75,6 +75,42 @@ class ApiService {
     return null;
   }
 
+  static Future<User?> updateProfile({
+    required String name,
+    required String bio,
+    required String avatarPreset,
+    required String phone,
+    String? newPassword,
+  }) async {
+    final current = await getCurrentUser();
+    if (current == null) return null;
+    final updated = current.copyWith(
+      name: name,
+      bio: bio,
+      avatarPreset: avatarPreset,
+      phone: phone,
+      password: (newPassword != null && newPassword.isNotEmpty) ? newPassword : current.password,
+    );
+    await saveCurrentUser(updated);
+    return updated;
+  }
+
+  static Future<User> resetProfileToDefault() async {
+    final defaultUser = User(
+      username: 'kal3',
+      name: 'Super Admin K3 (PLN Nusa Daya)',
+      role: 'superadmin',
+      token: 'superadmin-token-kal3-2026',
+      kdRegion: '05',
+      bio: 'Teknisi Operasi & Pemeliharaan Pembangkit PLTD',
+      avatarPreset: '1',
+      phone: '0812-3456-7890',
+      password: 'password',
+    );
+    await saveCurrentUser(defaultUser);
+    return defaultUser;
+  }
+
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyUser);
@@ -368,6 +404,24 @@ class ApiService {
     } catch (_) {
       return true; // local fallback safe
     }
+  }
+
+  static Future<int> importReports(List<HARModel> newReports) async {
+    final prefs = await SharedPreferences.getInstance();
+    final current = await getHARReports();
+    int addedCount = 0;
+    for (final r in newReports) {
+      final existingIndex = current.indexWhere((item) => item.harNumber == r.harNumber);
+      if (existingIndex == -1) {
+        current.insert(0, r);
+        addedCount++;
+      } else {
+        current[existingIndex] = r;
+        addedCount++;
+      }
+    }
+    await prefs.setString(_keyHarReports, jsonEncode(current.map((r) => r.toJson()).toList()));
+    return addedCount;
   }
 }
 extension ListCount<E> on Iterable<E> {

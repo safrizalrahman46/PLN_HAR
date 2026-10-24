@@ -3,9 +3,11 @@ import '../theme/app_theme.dart';
 import '../models/models.dart';
 import '../data/api_service.dart';
 import 'buat_har_screen.dart';
+import '../services/export_import_service.dart';
 
 class DaftarMesinScreen extends StatefulWidget {
-  const DaftarMesinScreen({super.key});
+  final bool isTab;
+  const DaftarMesinScreen({super.key, this.isTab = false});
 
   @override
   State<DaftarMesinScreen> createState() => _DaftarMesinScreenState();
@@ -58,8 +60,38 @@ class _DaftarMesinScreenState extends State<DaftarMesinScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FB),
       appBar: AppBar(
+        automaticallyImplyLeading: !widget.isTab,
         title: const Text('Inventaris Mesin PLTD'),
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.table_chart_rounded, color: Color(0xFF16A34A)),
+            tooltip: 'Export Excel Mesin (.xlsx)',
+            onPressed: () async {
+              await ExportImportService.exportMachinesToExcel(_machines, _activeUnit?.namaUnit ?? 'PLTD');
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                      const SizedBox(width: 8),
+                      Text('Inventaris mesin ${_activeUnit?.namaUnit ?? ""} berhasil diexport ke Excel.'),
+                    ],
+                  ),
+                  backgroundColor: AppTheme.accentGreen,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Segarkan Mesin',
+            onPressed: _loadData,
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
