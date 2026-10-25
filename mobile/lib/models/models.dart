@@ -7,6 +7,8 @@ class User {
   final String bio;
   final String avatarPreset;
   final String phone;
+  final String email;
+  final String? photoBase64;
   final String? password;
 
   User({
@@ -18,7 +20,9 @@ class User {
     this.bio = 'Teknisi Operasi & Pemeliharaan Pembangkit PLTD',
     this.avatarPreset = '1',
     this.phone = '0812-3456-7890',
-    this.password,
+    this.email = 'teknisi.har@nusadaya.pln.co.id',
+    this.photoBase64,
+    this.password = 'password',
   });
 
   User copyWith({
@@ -30,6 +34,8 @@ class User {
     String? bio,
     String? avatarPreset,
     String? phone,
+    String? email,
+    String? photoBase64,
     String? password,
   }) {
     return User(
@@ -41,6 +47,8 @@ class User {
       bio: bio ?? this.bio,
       avatarPreset: avatarPreset ?? this.avatarPreset,
       phone: phone ?? this.phone,
+      email: email ?? this.email,
+      photoBase64: photoBase64 ?? this.photoBase64,
       password: password ?? this.password,
     );
   }
@@ -55,7 +63,9 @@ class User {
       bio: json['bio'] ?? 'Teknisi Operasi & Pemeliharaan Pembangkit PLTD',
       avatarPreset: json['avatar_preset'] ?? '1',
       phone: json['phone'] ?? '0812-3456-7890',
-      password: json['password'],
+      email: json['email'] ?? 'teknisi.har@nusadaya.pln.co.id',
+      photoBase64: json['photo_base64'],
+      password: json['password'] ?? 'password',
     );
   }
 
@@ -68,6 +78,8 @@ class User {
     'bio': bio,
     'avatar_preset': avatarPreset,
     'phone': phone,
+    'email': email,
+    if (photoBase64 != null) 'photo_base64': photoBase64,
     if (password != null) 'password': password,
   };
 }

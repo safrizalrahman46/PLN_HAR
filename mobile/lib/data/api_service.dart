@@ -76,19 +76,25 @@ class ApiService {
   }
 
   static Future<User?> updateProfile({
+    String? username,
     required String name,
     required String bio,
     required String avatarPreset,
     required String phone,
+    String? email,
+    String? photoBase64,
     String? newPassword,
   }) async {
     final current = await getCurrentUser();
     if (current == null) return null;
     final updated = current.copyWith(
+      username: (username != null && username.isNotEmpty) ? username : current.username,
       name: name,
       bio: bio,
       avatarPreset: avatarPreset,
       phone: phone,
+      email: (email != null && email.isNotEmpty) ? email : current.email,
+      photoBase64: photoBase64 ?? current.photoBase64,
       password: (newPassword != null && newPassword.isNotEmpty) ? newPassword : current.password,
     );
     await saveCurrentUser(updated);

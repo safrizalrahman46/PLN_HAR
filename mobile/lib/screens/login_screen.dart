@@ -101,8 +101,8 @@ class _LoginScreenState extends State<LoginScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 380),
-          padding: const EdgeInsets.all(26),
+          constraints: const BoxConstraints(maxWidth: 360),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(28),
@@ -119,8 +119,8 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               // Large Circular Success Icon (Matching Reference 1 Green Badge)
               Container(
-                width: 86,
-                height: 86,
+                width: 80,
+                height: 80,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [Color(0xFF10B981), Color(0xFF059669)],
@@ -137,16 +137,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
                 child: const Center(
-                  child: Icon(Icons.check_rounded, color: Colors.white, size: 48),
+                  child: Icon(Icons.check_rounded, color: Colors.white, size: 44),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
 
               // Title & Message
               const Text(
                 'Selamat, Berhasil!',
                 style: TextStyle(
-                  fontSize: 22,
+                  fontSize: 21,
                   fontWeight: FontWeight.w900,
                   color: Color(0xFF0F172A),
                   letterSpacing: -0.3,
@@ -157,17 +157,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 'Autentikasi $name sebagai ${role.toUpperCase()} telah terverifikasi secara resmi di server WACB.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 13,
+                  fontSize: 12.5,
                   color: Color(0xFF64748B),
                   height: 1.4,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 22),
 
-              // Yellow Primary CTA Button (Matching Reference 1)
+              // Yellow Primary CTA Button (Matching Reference 1 - FittedBox prevents any overflow)
               Container(
                 width: double.infinity,
-                height: 52,
+                height: 50,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFFFFD500), Color(0xFFFFAB00)],
@@ -194,22 +194,26 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.transparent,
                     shadowColor: Colors.transparent,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Lanjut ke Dashboard Unit',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF002244),
+                  child: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Lanjut ke Dashboard Unit',
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF002244),
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 8),
-                      Icon(Icons.arrow_forward_rounded, color: Color(0xFF002244), size: 18),
-                    ],
+                        SizedBox(width: 8),
+                        Icon(Icons.arrow_forward_rounded, color: Color(0xFF002244), size: 18),
+                      ],
+                    ),
                   ),
                 ),
               ),

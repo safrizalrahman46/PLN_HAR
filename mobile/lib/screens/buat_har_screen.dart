@@ -277,391 +277,23 @@ class _BuatHARScreenState extends State<BuatHARScreen> {
       ),
       body: Stack(
         children: [
-          Theme(
-            data: Theme.of(context).copyWith(
-              colorScheme: const ColorScheme.light(primary: AppTheme.primary),
-            ),
-            child: Stepper(
-              type: StepperType.horizontal,
-              currentStep: _currentStep,
-              onStepContinue: () {
-                if (_currentStep < 4) {
-                  setState(() => _currentStep++);
-                } else {
-                  if (!_isSubmitting) {
-                    _handleSubmit();
-                  }
-                }
-              },
-              onStepCancel: () {
-                if (_currentStep > 0) {
-                  setState(() => _currentStep--);
-                }
-              },
-              steps: [
-                // STEP 1: Info & Mesin
-                Step(
-                  title: const Text('Info'),
-                  isActive: _currentStep >= 0,
-                  content: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Pilih Mesin Pembangkit', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppTheme.textDark)),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppTheme.primary, width: 1.5),
-                          boxShadow: AppTheme.softShadow,
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<MachineModel>(
-                            value: _selectedMachine,
-                            isExpanded: true,
-                            items: _machines.map((m) {
-                              return DropdownMenuItem(
-                                value: m,
-                                child: Text(m.namaMesin, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                              );
-                            }).toList(),
-                            onChanged: (val) {
-                              if (val != null) setState(() => _selectedMachine = val);
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
+          Column(
+            children: [
+              // 1. Responsive Horizontal Step Tracker Header (Never Overflows!)
+              _buildResponsiveStepHeader(),
 
-                      // Time Slot Selector
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Slot Jam Laporan (00:00 - 24:00)', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppTheme.textDark)),
-                          TextButton(
-                            onPressed: () => setState(() => _useCustomJam = !_useCustomJam),
-                            child: Text(
-                              _useCustomJam ? 'Pilih dari List' : 'Ketik Jam Manual',
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.primary),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (!_useCustomJam) ...[
-                        DropdownButtonFormField<String>(
-                          initialValue: _allTimeSlots.contains(_selectedTimeSlot) ? _selectedTimeSlot : _allTimeSlots.first,
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: Colors.white,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                          ),
-                          items: _allTimeSlots.map((t) => DropdownMenuItem(value: t, child: Text('Slot $t WITA', style: const TextStyle(fontWeight: FontWeight.w700)))).toList(),
-                          onChanged: (val) {
-                            if (val != null) setState(() => _selectedTimeSlot = val);
-                          },
-                        ),
-                      ] else ...[
-                        TextField(
-                          controller: _customJamController,
-                          decoration: InputDecoration(
-                            hintText: 'Contoh: 11:30 atau 07:15',
-                            filled: true,
-                            fillColor: Colors.white,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 18),
-
-                      // Technical Measurements
-                      const Text('Parameter Operasi Real-Time', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppTheme.textDark)),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(child: _buildParamField('Daya Mampu (kW)', _dayaMampuController)),
-                          const SizedBox(width: 10),
-                          Expanded(child: _buildParamField('Beban (kW)', _bebanController)),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(child: _buildParamField('Stand KWH', _standKwhController)),
-                          const SizedBox(width: 10),
-                          Expanded(child: _buildParamField('Stand BBM (L)', _standBbmController)),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(child: _buildParamField('Jam Kerja (HM)', _jamKerjaController)),
-                          const SizedBox(width: 10),
-                          Expanded(child: _buildParamField('Tek. Oli (Bar)', _tekOliController)),
-                        ],
-                      ),
-                    ],
-                  ),
+              // 2. Active Step Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                  physics: const BouncingScrollPhysics(),
+                  child: _buildStepContent(_currentStep),
                 ),
+              ),
 
-                // STEP 2: Realistic Checklist
-                Step(
-                  title: const Text('Checklist'),
-                  isActive: _currentStep >= 1,
-                  content: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Item Inspeksi Komponen', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppTheme.textDark)),
-                          ElevatedButton.icon(
-                            onPressed: () => _setAllChecklist('baik'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.accentGreen,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                            icon: const Icon(Icons.flash_on_rounded, size: 14),
-                            label: const Text('Set Semua BAIK', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      ..._checklists.map((item) {
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: item.condition == 'rusak'
-                                  ? AppTheme.accentRed
-                                  : item.condition == 'perbaikan'
-                                      ? AppTheme.secondary
-                                      : AppTheme.outlineVariant,
-                            ),
-                            boxShadow: AppTheme.softShadow,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppTheme.textDark)),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.surfaceContainerLow,
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(item.category, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.outline)),
-                                  )
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                children: [
-                                  _buildChecklistChip(item, 'baik', 'Baik', AppTheme.accentGreen),
-                                  _buildChecklistChip(item, 'perbaikan', 'Perlu Cek', const Color(0xFFD97706)),
-                                  _buildChecklistChip(item, 'rusak', 'Rusak', AppTheme.accentRed),
-                                  _buildChecklistChip(item, 'skip', 'Skip', Colors.grey),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-
-                // STEP 3: Temuan & Tindakan
-                Step(
-                  title: const Text('Temuan'),
-                  isActive: _currentStep >= 2,
-                  content: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Template Cepat (Ketuk untuk Mengisi):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppTheme.outline)),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 6,
-                        children: [
-                          ActionChip(
-                            label: const Text('✅ Mesin Normal & Andal', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-                            onPressed: () => _applyQuickTemplate('Kondisi mesin normal dan parameter dalam batas aman.', 'Pemeriksaan rutin berkala dan pembersihan area unit.'),
-                          ),
-                          ActionChip(
-                            label: const Text('🔧 Bersihkan Filter Oli', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-                            onPressed: () => _applyQuickTemplate('Filter oli sedikit tersumbat residu pembakaran.', 'Dilakukan pembersihan housing filter dan penggantian elemen.'),
-                          ),
-                          ActionChip(
-                            label: const Text('💧 Cek Air Radiator', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-                            onPressed: () => _applyQuickTemplate('Level coolant radiator turun 5 cm dari batas normal.', 'Penambahan cairan coolant dan pengecekan kebocoran klem selang.'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      const Text('Deskripsi Temuan Lapangan', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppTheme.textDark)),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: _temuanController,
-                        maxLines: 3,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      const Text('Tindakan Pemeliharaan / Solusi', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppTheme.textDark)),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: _tindakanController,
-                        maxLines: 3,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // STEP 4: Foto Dokumentasi
-                Step(
-                  title: const Text('Foto'),
-                  isActive: _currentStep >= 3,
-                  content: Column(
-                    children: [
-                      _buildPhotoSlot('Foto Sebelum (Before)', _hasPhotoBefore, () => setState(() => _hasPhotoBefore = !_hasPhotoBefore)),
-                      const SizedBox(height: 10),
-                      _buildPhotoSlot('Foto Saat Pekerjaan (Process)', _hasPhotoProcess, () => setState(() => _hasPhotoProcess = !_hasPhotoProcess)),
-                      const SizedBox(height: 10),
-                      _buildPhotoSlot('Foto Setelah Selesai (After)', _hasPhotoAfter, () => setState(() => _hasPhotoAfter = !_hasPhotoAfter)),
-                    ],
-                  ),
-                ),
-
-                // STEP 5: Review & Submit
-                Step(
-                  title: const Text('Review'),
-                  isActive: _currentStep >= 4,
-                  content: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: AppTheme.primary, width: 1.5),
-                          boxShadow: AppTheme.cardShadow,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  _activeUnit?.namaUnit ?? 'ULD BATU AMPAR',
-                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppTheme.primaryDark),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.accentGreen,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: const Text('SIAP SUBMIT', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w900)),
-                                ),
-                              ],
-                            ),
-                            const Divider(height: 16),
-                            Text('Mesin: ${_selectedMachine?.namaMesin ?? "-"}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-                            const SizedBox(height: 2),
-                            Text('Slot Jam Laporan: $_finalJamValue WITA (24 Jam)', style: const TextStyle(fontSize: 12, color: AppTheme.outline)),
-                            const SizedBox(height: 10),
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(color: AppTheme.surfaceContainerLow, borderRadius: BorderRadius.circular(12)),
-                              child: Column(
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text('Daya Mampu: ${_dayaMampuController.text} kW', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                                      Text('Beban: ${_bebanController.text} kW', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppTheme.primary)),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text('Tek. Oli: ${_tekOliController.text} Bar', style: const TextStyle(fontSize: 12)),
-                                      Text('Jam Kerja: ${_jamKerjaController.text} HM', style: const TextStyle(fontSize: 12)),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text('Checklist Komponen: ${_checklists.where((c) => c.condition == 'baik').length}/${_checklists.length} Baik', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-                            const SizedBox(height: 4),
-                            Text('Temuan: ${_temuanController.text}', style: const TextStyle(fontSize: 11, color: AppTheme.outline), maxLines: 2, overflow: TextOverflow.ellipsis),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      Container(
-                        width: double.infinity,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          gradient: AppTheme.yellowLightningGradient,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.secondary.withValues(alpha: 0.3),
-                              blurRadius: 14,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: ElevatedButton.icon(
-                          onPressed: _isSubmitting ? null : _handleSubmit,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            foregroundColor: AppTheme.onSecondaryContainer,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          ),
-                          icon: _isSubmitting
-                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
-                              : const Icon(Icons.send_rounded, size: 20),
-                          label: Text(
-                            _isSubmitting ? 'Mengirim Data...' : 'Kirim Laporan HAR & Logsheet',
-                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              // 3. Bottom Action Navigation Bar
+              _buildBottomActionButtons(),
+            ],
           ),
           Align(
             alignment: Alignment.topCenter,
@@ -672,6 +304,574 @@ class _BuatHARScreenState extends State<BuatHARScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // 1. Responsive Horizontal Step Header (Guaranteed NO Overflow)
+  Widget _buildResponsiveStepHeader() {
+    final stepNames = [
+      {'title': 'Info Mesin', 'icon': Icons.tune_rounded},
+      {'title': 'Checklist (12)', 'icon': Icons.checklist_rounded},
+      {'title': 'Temuan & Solusi', 'icon': Icons.assignment_late_rounded},
+      {'title': 'Foto Dokumentasi', 'icon': Icons.photo_camera_rounded},
+      {'title': 'Review & Kirim', 'icon': Icons.verified_rounded},
+    ];
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.only(top: 10, bottom: 8),
+      child: Column(
+        children: [
+          // Linear progress bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: (_currentStep + 1) / 5,
+                backgroundColor: const Color(0xFFE2E8F0),
+                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF00A2E8)),
+                minHeight: 5,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Horizontal scrollable step pills
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Row(
+              children: List.generate(stepNames.length, (index) {
+                final isCurrent = _currentStep == index;
+                final isPassed = _currentStep > index;
+                final item = stepNames[index];
+
+                return GestureDetector(
+                  onTap: () => setState(() => _currentStep = index),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isCurrent
+                          ? const Color(0xFF00A2E8)
+                          : isPassed
+                              ? const Color(0xFFDCFCE7)
+                              : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isCurrent
+                            ? const Color(0xFF008CC8)
+                            : isPassed
+                                ? const Color(0xFF86EFAC)
+                                : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isCurrent
+                                ? Colors.white
+                                : isPassed
+                                    ? const Color(0xFF16A34A)
+                                    : const Color(0xFF94A3B8),
+                          ),
+                          child: Center(
+                            child: isPassed
+                                ? const Icon(Icons.check, size: 12, color: Colors.white)
+                                : Text(
+                                    '${index + 1}',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w900,
+                                      color: isCurrent ? const Color(0xFF00A2E8) : Colors.white,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          item['title'] as String,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: isCurrent ? FontWeight.w900 : FontWeight.w600,
+                            color: isCurrent
+                                ? Colors.white
+                                : isPassed
+                                    ? const Color(0xFF15803D)
+                                    : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 2. Active Step Content Dispatcher
+  Widget _buildStepContent(int step) {
+    switch (step) {
+      case 0:
+        return _buildStep1Info();
+      case 1:
+        return _buildStep2Checklist();
+      case 2:
+        return _buildStep3Temuan();
+      case 3:
+        return _buildStep4Foto();
+      case 4:
+        return _buildStep5Review();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  // Step 1: Info Mesin & Parameter
+  Widget _buildStep1Info() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Pilih Mesin Pembangkit', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppTheme.textDark)),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppTheme.primary, width: 1.5),
+            boxShadow: AppTheme.softShadow,
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<MachineModel>(
+              value: _selectedMachine,
+              isExpanded: true,
+              items: _machines.map((m) {
+                return DropdownMenuItem(
+                  value: m,
+                  child: Text(m.namaMesin, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                );
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) setState(() => _selectedMachine = val);
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Time Slot Selector
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Slot Jam Laporan (00:00 - 24:00)', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppTheme.textDark)),
+            TextButton(
+              onPressed: () => setState(() => _useCustomJam = !_useCustomJam),
+              child: Text(
+                _useCustomJam ? 'Pilih dari List' : 'Ketik Jam Manual',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.primary),
+              ),
+            ),
+          ],
+        ),
+        if (!_useCustomJam) ...[
+          DropdownButtonFormField<String>(
+            initialValue: _allTimeSlots.contains(_selectedTimeSlot) ? _selectedTimeSlot : _allTimeSlots.first,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            items: _allTimeSlots.map((t) => DropdownMenuItem(value: t, child: Text('Slot $t WITA', style: const TextStyle(fontWeight: FontWeight.w700)))).toList(),
+            onChanged: (val) {
+              if (val != null) setState(() => _selectedTimeSlot = val);
+            },
+          ),
+        ] else ...[
+          TextField(
+            controller: _customJamController,
+            decoration: InputDecoration(
+              hintText: 'Contoh: 11:30 atau 07:15',
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+        ],
+        const SizedBox(height: 18),
+
+        // Technical Measurements
+        const Text('Parameter Operasi Real-Time', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppTheme.textDark)),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(child: _buildParamField('Daya Mampu (kW)', _dayaMampuController)),
+            const SizedBox(width: 10),
+            Expanded(child: _buildParamField('Beban (kW)', _bebanController)),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(child: _buildParamField('Stand KWH', _standKwhController)),
+            const SizedBox(width: 10),
+            Expanded(child: _buildParamField('Stand BBM (L)', _standBbmController)),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(child: _buildParamField('Jam Kerja (HM)', _jamKerjaController)),
+            const SizedBox(width: 10),
+            Expanded(child: _buildParamField('Tek. Oli (Bar)', _tekOliController)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // Step 2: Realistic Checklist
+  Widget _buildStep2Checklist() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Item Inspeksi Komponen', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppTheme.textDark)),
+            ElevatedButton.icon(
+              onPressed: () => _setAllChecklist('baik'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.accentGreen,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              icon: const Icon(Icons.flash_on_rounded, size: 14),
+              label: const Text('Set Semua BAIK', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        ..._checklists.map((item) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: item.condition == 'rusak'
+                    ? AppTheme.accentRed
+                    : item.condition == 'perbaikan'
+                        ? AppTheme.secondary
+                        : AppTheme.outlineVariant,
+              ),
+              boxShadow: AppTheme.softShadow,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppTheme.textDark)),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(item.category, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.outline)),
+                    )
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildChecklistChip(item, 'baik', 'Baik', AppTheme.accentGreen),
+                    _buildChecklistChip(item, 'perbaikan', 'Perlu Cek', const Color(0xFFD97706)),
+                    _buildChecklistChip(item, 'rusak', 'Rusak', AppTheme.accentRed),
+                    _buildChecklistChip(item, 'skip', 'Skip', Colors.grey),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  // Step 3: Temuan & Tindakan
+  Widget _buildStep3Temuan() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Template Cepat (Ketuk untuk Mengisi):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppTheme.outline)),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            ActionChip(
+              label: const Text('✅ Mesin Normal & Andal', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+              onPressed: () => _applyQuickTemplate('Kondisi mesin normal dan parameter dalam batas aman.', 'Pemeriksaan rutin berkala dan pembersihan area unit.'),
+            ),
+            ActionChip(
+              label: const Text('🔧 Bersihkan Filter Oli', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+              onPressed: () => _applyQuickTemplate('Filter oli sedikit tersumbat residu pembakaran.', 'Dilakukan pembersihan housing filter dan penggantian elemen.'),
+            ),
+            ActionChip(
+              label: const Text('💧 Cek Air Radiator', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+              onPressed: () => _applyQuickTemplate('Level coolant radiator turun 5 cm dari batas normal.', 'Penambahan cairan coolant dan pengecekan kebocoran klem selang.'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        const Text('Deskripsi Temuan Lapangan', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppTheme.textDark)),
+        const SizedBox(height: 6),
+        TextField(
+          controller: _temuanController,
+          maxLines: 3,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+        ),
+        const SizedBox(height: 14),
+        const Text('Tindakan Pemeliharaan / Solusi', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppTheme.textDark)),
+        const SizedBox(height: 6),
+        TextField(
+          controller: _tindakanController,
+          maxLines: 3,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Step 4: Foto Dokumentasi
+  Widget _buildStep4Foto() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Dokumentasi Foto Lapangan', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppTheme.textDark)),
+        const SizedBox(height: 4),
+        const Text('Lampirkan foto fisik komponen mesin sebelum, saat, dan sesudah pemeliharaan.', style: TextStyle(fontSize: 12, color: AppTheme.outline)),
+        const SizedBox(height: 14),
+        _buildPhotoSlot('Foto Sebelum (Before)', _hasPhotoBefore, () => setState(() => _hasPhotoBefore = !_hasPhotoBefore)),
+        const SizedBox(height: 10),
+        _buildPhotoSlot('Foto Saat Pekerjaan (Process)', _hasPhotoProcess, () => setState(() => _hasPhotoProcess = !_hasPhotoProcess)),
+        const SizedBox(height: 10),
+        _buildPhotoSlot('Foto Setelah Selesai (After)', _hasPhotoAfter, () => setState(() => _hasPhotoAfter = !_hasPhotoAfter)),
+      ],
+    );
+  }
+
+  // Step 5: Review & Submit
+  Widget _buildStep5Review() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppTheme.primary, width: 1.5),
+            boxShadow: AppTheme.cardShadow,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    _activeUnit?.namaUnit ?? 'ULD BATU AMPAR',
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppTheme.primaryDark),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentGreen,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text('SIAP SUBMIT', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w900)),
+                  ),
+                ],
+              ),
+              const Divider(height: 16),
+              Text('Mesin: ${_selectedMachine?.namaMesin ?? "-"}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+              const SizedBox(height: 2),
+              Text('Slot Jam Laporan: $_finalJamValue WITA (24 Jam)', style: const TextStyle(fontSize: 12, color: AppTheme.outline)),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: AppTheme.surfaceContainerLow, borderRadius: BorderRadius.circular(12)),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Daya Mampu: ${_dayaMampuController.text} kW', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        Text('Beban: ${_bebanController.text} kW', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppTheme.primary)),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Tek. Oli: ${_tekOliController.text} Bar', style: const TextStyle(fontSize: 12)),
+                        Text('Jam Kerja: ${_jamKerjaController.text} HM', style: const TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text('Checklist Komponen: ${_checklists.where((c) => c.condition == 'baik').length}/${_checklists.length} Baik', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+              const SizedBox(height: 4),
+              Text('Temuan: ${_temuanController.text.isNotEmpty ? _temuanController.text : "Kondisi mesin normal"}', style: const TextStyle(fontSize: 11, color: AppTheme.outline), maxLines: 2, overflow: TextOverflow.ellipsis),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 3. Bottom Action Navigation Bar (Responsive, Never Overflows)
+  Widget _buildBottomActionButtons() {
+    final isLastStep = _currentStep == 4;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: const Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -3),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            // Back Button
+            if (_currentStep > 0) ...[
+              OutlinedButton.icon(
+                onPressed: () => setState(() => _currentStep--),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  side: const BorderSide(color: Color(0xFFCBD5E1)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                icon: const Icon(Icons.arrow_back_rounded, size: 16, color: Color(0xFF475569)),
+                label: const Text('Kembali', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF475569))),
+              ),
+              const SizedBox(width: 10),
+            ],
+
+            // Next / Submit Button
+            Expanded(
+              child: Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: isLastStep
+                      ? const LinearGradient(
+                          colors: [Color(0xFFFFD500), Color(0xFFFFB700)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : const LinearGradient(
+                          colors: [Color(0xFF0072B2), Color(0xFF00A2E8)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isLastStep
+                          ? const Color(0xFFFFD500).withValues(alpha: 0.4)
+                          : const Color(0xFF00A2E8).withValues(alpha: 0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: ElevatedButton(
+                  onPressed: _isSubmitting
+                      ? null
+                      : () {
+                          if (!isLastStep) {
+                            setState(() => _currentStep++);
+                          } else {
+                            _handleSubmit();
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              isLastStep ? 'Kirim Laporan HAR' : 'Lanjutkan',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                                color: isLastStep ? const Color(0xFF002244) : Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(
+                              isLastStep ? Icons.send_rounded : Icons.arrow_forward_rounded,
+                              size: 16,
+                              color: isLastStep ? const Color(0xFF002244) : Colors.white,
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
