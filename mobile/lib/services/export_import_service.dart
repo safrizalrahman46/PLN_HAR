@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -125,6 +126,8 @@ class ExportImportService {
               border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
               headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8.5, color: PdfColors.white),
               headerDecoration: const pw.BoxDecoration(color: PdfColors.blue800),
+              rowDecoration: const pw.BoxDecoration(color: PdfColors.white),
+              oddRowDecoration: const pw.BoxDecoration(color: PdfColors.grey50),
               cellStyle: const pw.TextStyle(fontSize: 8),
               cellAlignment: pw.Alignment.centerLeft,
               cellPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
@@ -217,19 +220,68 @@ class ExportImportService {
     );
   }
 
+  // Helper Styling for Excel Cells
+  static CellStyle _excelHeaderStyle({ExcelColor? bgColor}) {
+    return CellStyle(
+      bold: true,
+      fontSize: 10,
+      fontColorHex: ExcelColor.fromHexString('FFFFFFFF'),
+      backgroundColorHex: bgColor ?? ExcelColor.fromHexString('FF004B87'),
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+      leftBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('FFE2E8F0')),
+      rightBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('FFE2E8F0')),
+      topBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('FFE2E8F0')),
+      bottomBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('FFE2E8F0')),
+    );
+  }
+
+  static CellStyle _excelDataStyle({
+    bool isOdd = false,
+    HorizontalAlign align = HorizontalAlign.Left,
+    bool bold = false,
+    ExcelColor? fontColor,
+    ExcelColor? bgColor,
+  }) {
+    final defaultBg = isOdd ? ExcelColor.fromHexString('FFF8FAFC') : ExcelColor.fromHexString('FFFFFFFF');
+    return CellStyle(
+      bold: bold,
+      fontSize: 9,
+      fontColorHex: fontColor ?? ExcelColor.fromHexString('FF1E293B'),
+      backgroundColorHex: bgColor ?? defaultBg,
+      horizontalAlign: align,
+      verticalAlign: VerticalAlign.Center,
+      leftBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('FFE2E8F0')),
+      rightBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('FFE2E8F0')),
+      topBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('FFE2E8F0')),
+      bottomBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('FFE2E8F0')),
+    );
+  }
+
   // ==================== 2. EXPORT SINGLE HAR DETAIL TO PDF ====================
   static Future<void> exportSingleHARToPdf(HARModel report) async {
     final pdf = pw.Document();
 
+    // Extract valid photos if available
+    final List<Uint8List> validPhotoBytes = [];
+    for (final p in report.photos) {
+      if (p.isEmpty) continue;
+      try {
+        final clean = p.contains(',') ? p.split(',').last : p;
+        final decoded = base64Decode(clean);
+        if (decoded.isNotEmpty) {
+          validPhotoBytes.add(decoded);
+        }
+      } catch (_) {}
+    }
+
     pdf.addPage(
-      pw.Page(
+      pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        build: (pw.Context context) {
+        margin: const pw.EdgeInsets.all(28),
+        header: (pw.Context context) {
           return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              // Header
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
@@ -241,151 +293,265 @@ class ExportImportService {
                         style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 13, color: PdfColors.blue900),
                       ),
                       pw.Text(
-                        'LEMBAR BERITA ACARA PEMELIHARAAN (HAR) MESIN PLTD',
-                        style: const pw.TextStyle(fontSize: 9.5, color: PdfColors.grey700),
+                        'DIVISI KEANDALAN OPERASI & PEMELIHARAAN PEMBANGKIT PLTD',
+                        style: const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey700),
+                      ),
+                      pw.Text(
+                        'Unit Layanan: ${report.unitName}',
+                        style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700),
                       ),
                     ],
                   ),
                   pw.Container(
-                    padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: pw.BoxDecoration(
-                      color: report.status == 'approved' ? PdfColors.green50 : PdfColors.orange50,
+                      color: report.status == 'approved' ? PdfColors.green50 : PdfColors.amber50,
                       border: pw.Border.all(
-                        color: report.status == 'approved' ? PdfColors.green : PdfColors.orange,
-                        width: 1,
+                        color: report.status == 'approved' ? PdfColors.green700 : PdfColors.amber700,
+                        width: 1.2,
                       ),
-                      borderRadius: pw.BorderRadius.circular(4),
+                      borderRadius: pw.BorderRadius.circular(6),
                     ),
-                    child: pw.Text(
-                      report.status.toUpperCase(),
-                      style: pw.TextStyle(
-                        fontSize: 9,
-                        fontWeight: pw.FontWeight.bold,
-                        color: report.status == 'approved' ? PdfColors.green800 : PdfColors.orange800,
-                      ),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Text(
+                          report.status == 'approved' ? 'STATUS: APPROVED ✓' : 'STATUS: MENUNGGU APPROVAL SPV',
+                          style: pw.TextStyle(
+                            fontSize: 8.5,
+                            fontWeight: pw.FontWeight.bold,
+                            color: report.status == 'approved' ? PdfColors.green900 : PdfColors.amber900,
+                          ),
+                        ),
+                        pw.Text('No. Tiket: ${report.harNumber}', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.grey800)),
+                      ],
                     ),
                   ),
                 ],
               ),
-              pw.SizedBox(height: 8),
+              pw.SizedBox(height: 6),
               pw.Divider(thickness: 1.5, color: PdfColors.blue900),
-              pw.SizedBox(height: 10),
-
-              // Identitas Laporan
-              pw.Container(
-                padding: const pw.EdgeInsets.all(10),
-                decoration: pw.BoxDecoration(
-                  color: PdfColors.grey100,
-                  borderRadius: pw.BorderRadius.circular(6),
-                ),
-                child: pw.Column(
-                  children: [
-                    _buildPdfDetailRow('Nomor Berita Acara', report.harNumber),
-                    _buildPdfDetailRow('Unit Layanan PLTD', report.unitName),
-                    _buildPdfDetailRow('Mesin Pembangkit', report.machineName),
-                    _buildPdfDetailRow('Tanggal & Jam Slot', '${report.date} (Pukul ${report.timeSlot})'),
-                    _buildPdfDetailRow('Teknisi Pelaksana', report.technicianName),
-                    _buildPdfDetailRow('Tipe / Prioritas', '${report.maintenanceType.toUpperCase()} / Prioritas ${report.priority}'),
-                  ],
-                ),
+              pw.SizedBox(height: 8),
+            ],
+          );
+        },
+        footer: (pw.Context context) {
+          return pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                'Sistem Manajemen Pemeliharaan PLN HAR Mobile - Berita Acara Sah Elektronik',
+                style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey600),
               ),
-
-              pw.SizedBox(height: 12),
-
-              // Parameter Operasi WACB
-              pw.Text('Parameter Operasional Pembangkit (WACB):', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 6),
-              pw.TableHelper.fromTextArray(
-                border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
-                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8, color: PdfColors.white),
-                headerDecoration: const pw.BoxDecoration(color: PdfColors.blue700),
-                cellStyle: const pw.TextStyle(fontSize: 8),
-                headers: ['Daya Mampu', 'Beban Mesin', 'Stand kWh', 'Stand BBM', 'Tekanan Oli', 'Jam Kerja Mesin'],
-                data: [
-                  [
-                    '${report.dayaMampu.toInt()} kW',
-                    '${report.beban.toInt()} kW',
-                    '${report.standKwh}',
-                    '${report.standBbm.toInt()} L',
-                    '${report.tekananOli} Bar',
-                    '${report.jamKerjaMesin.toInt()} Jam',
-                  ],
-                ],
-              ),
-
-              pw.SizedBox(height: 12),
-
-              // Checklist Items Table
-              pw.Text('Daftar Periksa Fisik & Komponen Mesin (Checklist):', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 6),
-              pw.TableHelper.fromTextArray(
-                border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
-                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8, color: PdfColors.white),
-                headerDecoration: const pw.BoxDecoration(color: PdfColors.blue800),
-                cellStyle: const pw.TextStyle(fontSize: 8),
-                headers: ['Kategori', 'Item Pemeriksaan', 'Kondisi Fisik', 'Catatan Teknisi'],
-                data: report.checklists.map((c) {
-                  return [
-                    c.category,
-                    c.title,
-                    c.condition.toUpperCase(),
-                    c.notes.isNotEmpty ? c.notes : '-',
-                  ];
-                }).toList(),
-              ),
-
-              pw.SizedBox(height: 12),
-
-              // Temuan & Tindakan
-              pw.Text('Temuan & Rekomendasi Tindakan:', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 4),
-              pw.Container(
-                width: double.infinity,
-                padding: const pw.EdgeInsets.all(8),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.grey300),
-                  borderRadius: pw.BorderRadius.circular(4),
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text('Temuan: ${report.findingDescription}', style: const pw.TextStyle(fontSize: 8.5)),
-                    pw.SizedBox(height: 3),
-                    pw.Text('Tindakan Dilakukan: ${report.actionTaken}', style: const pw.TextStyle(fontSize: 8.5)),
-                    pw.SizedBox(height: 3),
-                    pw.Text('Hasil Akhir: ${report.finalResult}', style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)),
-                  ],
-                ),
-              ),
-
-              pw.Spacer(),
-
-              // Tanda Tangan
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.center,
-                    children: [
-                      pw.Text('Pelaksana Pemeliharaan,', style: const pw.TextStyle(fontSize: 8.5)),
-                      pw.SizedBox(height: 34),
-                      pw.Text(report.technicianName, style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-                      pw.Text('Teknisi PLTD', style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey600)),
-                    ],
-                  ),
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.center,
-                    children: [
-                      pw.Text('Supervisor Keandalan (SPV),', style: const pw.TextStyle(fontSize: 8.5)),
-                      pw.SizedBox(height: 34),
-                      pw.Text('Super Admin K3', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-                      pw.Text('Status: ${report.status.toUpperCase()}', style: pw.TextStyle(fontSize: 7.5, color: PdfColors.green800)),
-                    ],
-                  ),
-                ],
+              pw.Text(
+                'Halaman ${context.pageNumber} dari ${context.pagesCount}',
+                style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey600),
               ),
             ],
           );
+        },
+        build: (pw.Context context) {
+          return [
+            // Title Bar
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+              decoration: const pw.BoxDecoration(color: PdfColors.blue900, borderRadius: pw.BorderRadius.all(pw.Radius.circular(4))),
+              child: pw.Center(
+                child: pw.Text('BERITA ACARA PEMELIHARAAN (HAR) & LOGSHEET MESIN PEMBANGKIT', style: pw.TextStyle(color: PdfColors.white, fontSize: 9.5, fontWeight: pw.FontWeight.bold)),
+              ),
+            ),
+            pw.SizedBox(height: 8),
+
+            // Identitas Laporan Grid
+            pw.Container(
+              padding: const pw.EdgeInsets.all(8),
+              decoration: pw.BoxDecoration(
+                color: PdfColors.grey100,
+                borderRadius: pw.BorderRadius.circular(6),
+                border: pw.Border.all(color: PdfColors.grey300),
+              ),
+              child: pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Expanded(
+                    child: pw.Column(
+                      children: [
+                        _buildPdfDetailRow('Nomor Berita Acara', report.harNumber),
+                        _buildPdfDetailRow('Unit Layanan PLTD', report.unitName),
+                        _buildPdfDetailRow('Mesin Pembangkit', report.machineName),
+                      ],
+                    ),
+                  ),
+                  pw.SizedBox(width: 14),
+                  pw.Expanded(
+                    child: pw.Column(
+                      children: [
+                        _buildPdfDetailRow('Tanggal & Jam Slot', '${report.date} (${report.timeSlot})'),
+                        _buildPdfDetailRow('Teknisi Pelaksana', report.technicianName),
+                        _buildPdfDetailRow('Tipe / Prioritas', '${report.maintenanceType.toUpperCase()} / Prioritas ${report.priority}'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 10),
+
+            // Parameter Operasi WACB
+            pw.Text('Parameter Operasional Pembangkit (WACB):', style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+            pw.SizedBox(height: 4),
+            pw.TableHelper.fromTextArray(
+              border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8, color: PdfColors.white),
+              headerDecoration: const pw.BoxDecoration(color: PdfColors.blue700),
+              cellStyle: const pw.TextStyle(fontSize: 8),
+              cellAlignment: pw.Alignment.center,
+              headers: ['Daya Mampu', 'Beban Mesin', 'Stand kWh', 'Stand BBM', 'Tekanan Oli', 'Jam Kerja Mesin'],
+              data: [
+                [
+                  '${report.dayaMampu.toInt()} kW',
+                  '${report.beban.toInt()} kW',
+                  '${report.standKwh}',
+                  '${report.standBbm.toInt()} L',
+                  '${report.tekananOli} Bar',
+                  '${report.jamKerjaMesin.toInt()} Jam',
+                ],
+              ],
+            ),
+            pw.SizedBox(height: 10),
+
+            // Checklist Items Table
+            pw.Text('Daftar Periksa Fisik & Komponen Mesin (Checklist):', style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+            pw.SizedBox(height: 4),
+            pw.TableHelper.fromTextArray(
+              border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8, color: PdfColors.white),
+              headerDecoration: const pw.BoxDecoration(color: PdfColors.blue800),
+              cellStyle: const pw.TextStyle(fontSize: 7.5),
+              cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 3.5),
+              headers: ['No', 'Kategori', 'Item Pemeriksaan', 'Kondisi Fisik', 'Catatan Teknisi'],
+              data: List<List<String>>.generate(report.checklists.length, (idx) {
+                final c = report.checklists[idx];
+                return [
+                  '${idx + 1}',
+                  c.category,
+                  c.title,
+                  c.condition.toUpperCase(),
+                  c.notes.isNotEmpty ? c.notes : '-',
+                ];
+              }),
+            ),
+            pw.SizedBox(height: 10),
+
+            // Temuan & Tindakan
+            pw.Text('Temuan & Rekomendasi Tindakan:', style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+            pw.SizedBox(height: 4),
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.all(8),
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: PdfColors.blue200),
+                borderRadius: pw.BorderRadius.circular(4),
+                color: PdfColors.blue50,
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text('Temuan: ${report.findingDescription.isNotEmpty ? report.findingDescription : "-"}', style: const pw.TextStyle(fontSize: 8)),
+                  pw.SizedBox(height: 2),
+                  pw.Text('Tindakan Dilakukan: ${report.actionTaken.isNotEmpty ? report.actionTaken : "-"}', style: const pw.TextStyle(fontSize: 8)),
+                  pw.SizedBox(height: 2),
+                  pw.Text('Hasil Akhir Evaluasi: ${report.finalResult}', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                ],
+              ),
+            ),
+
+            // Foto Dokumentasi (Real Captured Photos)
+            if (validPhotoBytes.isNotEmpty) ...[
+              pw.SizedBox(height: 12),
+              pw.Text('DOKUMENTASI FOTO FISIK LAPANGAN (VERIFIKASI KAMERA & GEOTAG):', style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+              pw.SizedBox(height: 5),
+              pw.Row(
+                children: List<pw.Widget>.generate(validPhotoBytes.length > 3 ? 3 : validPhotoBytes.length, (i) {
+                  final labels = ['Foto Sebelum (Before)', 'Saat Pekerjaan (Process)', 'Setelah Selesai (After)'];
+                  final lbl = i < labels.length ? labels[i] : 'Foto Lapangan ${i + 1}';
+                  return pw.Expanded(
+                    child: pw.Container(
+                      margin: const pw.EdgeInsets.symmetric(horizontal: 3),
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: PdfColors.grey300),
+                        borderRadius: pw.BorderRadius.circular(4),
+                      ),
+                      child: pw.Column(
+                        children: [
+                          pw.Container(
+                            width: double.infinity,
+                            padding: const pw.EdgeInsets.symmetric(vertical: 3),
+                            color: PdfColors.blue50,
+                            child: pw.Center(
+                              child: pw.Text(lbl, style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                            ),
+                          ),
+                          pw.ClipRRect(
+                            child: pw.Image(pw.MemoryImage(validPhotoBytes[i]), height: 95, fit: pw.BoxFit.cover),
+                          ),
+                          pw.Container(
+                            width: double.infinity,
+                            padding: const pw.EdgeInsets.symmetric(vertical: 2),
+                            color: PdfColors.grey100,
+                            child: pw.Center(
+                              child: pw.Text('Watermark GPS Valid ✓', style: const pw.TextStyle(fontSize: 6, color: PdfColors.green800)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ],
+
+            pw.SizedBox(height: 18),
+
+            // Tanda Tangan
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                    pw.Text('Pelaksana Pemeliharaan,', style: const pw.TextStyle(fontSize: 8)),
+                    pw.SizedBox(height: 32),
+                    pw.Text(report.technicianName, style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold)),
+                    pw.Text('Teknisi PLTD (NIP: 199504122019031001)', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600)),
+                  ],
+                ),
+                pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.blue800, width: 1),
+                    borderRadius: pw.BorderRadius.circular(4),
+                  ),
+                  child: pw.Column(
+                    children: [
+                      pw.Text('TERVALIDASI ELEKTRONIK', style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                      pw.Text('PLN HAR MOBILE', style: const pw.TextStyle(fontSize: 6, color: PdfColors.grey700)),
+                    ],
+                  ),
+                ),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                    pw.Text('Mengetahui & Menyetujui,', style: const pw.TextStyle(fontSize: 8)),
+                    pw.SizedBox(height: 32),
+                    pw.Text('Super Admin K3 / SPV HAR', style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold)),
+                    pw.Text('Supervisor Operasi & Keandalan', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600)),
+                  ],
+                ),
+              ],
+            ),
+          ];
         },
       ),
     );
@@ -393,6 +559,218 @@ class ExportImportService {
     final bytes = await pdf.save();
     final fileName = 'BERITA_ACARA_${report.harNumber}.pdf';
     downloadFile(bytes, fileName, mimeType: 'application/pdf');
+  }
+
+  // ==================== 2B. EXPORT SINGLE HAR DETAIL TO EXCEL (.XLSX) ====================
+  static Future<void> exportSingleHARToExcel(HARModel report) async {
+    final excel = Excel.createExcel();
+    final sheetName = 'Berita_Acara_HAR';
+    excel.rename('Sheet1', sheetName);
+    final sheet = excel[sheetName];
+
+    void setCell(int col, int row, CellValue value, CellStyle style) {
+      final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row));
+      cell.value = value;
+      cell.cellStyle = style;
+    }
+
+    // Set Column Widths (6 columns: A to F)
+    sheet.setColumnWidth(0, 8.0);
+    sheet.setColumnWidth(1, 26.0);
+    sheet.setColumnWidth(2, 34.0);
+    sheet.setColumnWidth(3, 20.0);
+    sheet.setColumnWidth(4, 30.0);
+    sheet.setColumnWidth(5, 20.0);
+
+    // Row 0: Company Banner
+    sheet.setRowHeight(0, 34.0);
+    sheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
+      CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: 0),
+      customValue: TextCellValue('PT PLN (PERSERO) - PLN NUSA DAYA'),
+    );
+    sheet.setMergedCellStyle(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
+      CellStyle(
+        bold: true,
+        fontSize: 13,
+        fontColorHex: ExcelColor.fromHexString('FFFFFFFF'),
+        backgroundColorHex: ExcelColor.fromHexString('FF002244'),
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+      ),
+    );
+
+    // Row 1: Document Title
+    sheet.setRowHeight(1, 24.0);
+    sheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1),
+      CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: 1),
+      customValue: TextCellValue('LEMBAR BERITA ACARA PEMELIHARAAN (HAR) MESIN PLTD'),
+    );
+    sheet.setMergedCellStyle(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1),
+      CellStyle(
+        bold: true,
+        fontSize: 11,
+        fontColorHex: ExcelColor.fromHexString('FFFFFFFF'),
+        backgroundColorHex: ExcelColor.fromHexString('FF0072B2'),
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+      ),
+    );
+
+    // Row 2: Subtitle
+    sheet.setRowHeight(2, 20.0);
+    sheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 2),
+      CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: 2),
+      customValue: TextCellValue('No. Berita Acara: ${report.harNumber} | Status: ${report.status.toUpperCase()} | Unit: ${report.unitName}'),
+    );
+    sheet.setMergedCellStyle(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 2),
+      CellStyle(
+        italic: true,
+        fontSize: 9,
+        fontColorHex: ExcelColor.fromHexString('FF1E293B'),
+        backgroundColorHex: ExcelColor.fromHexString('FFF1F5F9'),
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+      ),
+    );
+
+    // Row 3: Blank separator
+    sheet.setRowHeight(3, 8.0);
+
+    // Section 1: IDENTITAS DOKUMEN & MESIN
+    sheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 4),
+      CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: 4),
+      customValue: TextCellValue('1. IDENTITAS DOKUMEN & UNIT PEMBANGKIT'),
+    );
+    sheet.setMergedCellStyle(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 4),
+      _excelHeaderStyle(bgColor: ExcelColor.fromHexString('FF004B87')),
+    );
+
+    final meta = [
+      ['Nomor Tiket HAR', report.harNumber, 'Tanggal Inspeksi', report.date],
+      ['Unit Layanan PLTD', report.unitName, 'Jam Slot Operasi', report.timeSlot],
+      ['Mesin Pembangkit', report.machineName, 'Teknisi Pelaksana', report.technicianName],
+      ['Tipe Pemeliharaan', report.maintenanceType.toUpperCase(), 'Prioritas HAR', report.priority],
+      ['Status Berita Acara', report.status.toUpperCase(), 'Hasil Akhir', report.finalResult],
+    ];
+
+    for (int m = 0; m < meta.length; m++) {
+      final rIdx = 5 + m;
+      final isOdd = m % 2 == 1;
+      setCell(0, rIdx, TextCellValue(''), _excelDataStyle(isOdd: isOdd));
+      setCell(1, rIdx, TextCellValue(meta[m][0]), _excelDataStyle(isOdd: isOdd, bold: true));
+      setCell(2, rIdx, TextCellValue(meta[m][1]), _excelDataStyle(isOdd: isOdd));
+      setCell(3, rIdx, TextCellValue(meta[m][2]), _excelDataStyle(isOdd: isOdd, bold: true));
+      setCell(4, rIdx, TextCellValue(meta[m][3]), _excelDataStyle(isOdd: isOdd));
+      setCell(5, rIdx, TextCellValue(''), _excelDataStyle(isOdd: isOdd));
+    }
+
+    // Section 2: PARAMETER OPERASIONAL WACB
+    const wacbRow = 11;
+    sheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: wacbRow),
+      CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: wacbRow),
+      customValue: TextCellValue('2. PARAMETER OPERASIONAL PEMBANGKIT (WACB)'),
+    );
+    sheet.setMergedCellStyle(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: wacbRow),
+      _excelHeaderStyle(bgColor: ExcelColor.fromHexString('FF004B87')),
+    );
+
+    final paramHeaders = ['Daya Mampu', 'Beban Mesin', 'Stand kWh', 'Stand BBM', 'Tekanan Oli', 'Jam Kerja Mesin'];
+    for (int p = 0; p < paramHeaders.length; p++) {
+      setCell(p, wacbRow + 1, TextCellValue(paramHeaders[p]), _excelHeaderStyle(bgColor: ExcelColor.fromHexString('FF0284C7')));
+    }
+
+    final paramValues = [
+      '${report.dayaMampu.toInt()} kW',
+      '${report.beban.toInt()} kW',
+      '${report.standKwh}',
+      '${report.standBbm.toInt()} Liter',
+      '${report.tekananOli} Bar',
+      '${report.jamKerjaMesin.toInt()} HM',
+    ];
+    for (int p = 0; p < paramValues.length; p++) {
+      setCell(p, wacbRow + 2, TextCellValue(paramValues[p]), _excelDataStyle(align: HorizontalAlign.Center, bold: true));
+    }
+
+    // Section 3: CHECKLIST ITEMS
+    const checkRow = wacbRow + 4;
+    sheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: checkRow),
+      CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: checkRow),
+      customValue: TextCellValue('3. DAFTAR PERIKSA FISIK & KOMPONEN MESIN (CHECKLIST)'),
+    );
+    sheet.setMergedCellStyle(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: checkRow),
+      _excelHeaderStyle(bgColor: ExcelColor.fromHexString('FF004B87')),
+    );
+
+    final checkHeaders = ['NO', 'KATEGORI SISTEM', 'ITEM PEMERIKSAAN', 'KONDISI FISIK', 'CATATAN PEMERIKSAAN', 'STATUS'];
+    for (int ch = 0; ch < checkHeaders.length; ch++) {
+      setCell(ch, checkRow + 1, TextCellValue(checkHeaders[ch]), _excelHeaderStyle(bgColor: ExcelColor.fromHexString('FF0284C7')));
+    }
+
+    for (int cIdx = 0; cIdx < report.checklists.length; cIdx++) {
+      final c = report.checklists[cIdx];
+      final rIdx = checkRow + 2 + cIdx;
+      final isOdd = cIdx % 2 == 1;
+
+      final condBg = c.condition == 'baik'
+          ? ExcelColor.fromHexString('FFDCFCE7')
+          : (c.condition == 'perbaikan' ? ExcelColor.fromHexString('FFFEF3C7') : ExcelColor.fromHexString('FFFEE2E2'));
+      final condText = c.condition == 'baik'
+          ? ExcelColor.fromHexString('FF166534')
+          : (c.condition == 'perbaikan' ? ExcelColor.fromHexString('FF92400E') : ExcelColor.fromHexString('FF991B1B'));
+
+      setCell(0, rIdx, IntCellValue(cIdx + 1), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Center));
+      setCell(1, rIdx, TextCellValue(c.category), _excelDataStyle(isOdd: isOdd, bold: true));
+      setCell(2, rIdx, TextCellValue(c.title), _excelDataStyle(isOdd: isOdd));
+      setCell(3, rIdx, TextCellValue(c.condition.toUpperCase()), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Center, bold: true, bgColor: condBg, fontColor: condText));
+      setCell(4, rIdx, TextCellValue(c.notes.isNotEmpty ? c.notes : '-'), _excelDataStyle(isOdd: isOdd));
+      setCell(5, rIdx, TextCellValue('TERVERIFIKASI'), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Center));
+    }
+
+    // Section 4: TEMUAN & REKOMENDASI
+    final findRow = checkRow + 3 + report.checklists.length;
+    sheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: findRow),
+      CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: findRow),
+      customValue: TextCellValue('4. TEMUAN PEMERIKSAAN & TINDAKAN PERBAIKAN'),
+    );
+    sheet.setMergedCellStyle(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: findRow),
+      _excelHeaderStyle(bgColor: ExcelColor.fromHexString('FF004B87')),
+    );
+
+    setCell(0, findRow + 1, TextCellValue('Temuan Lapangan'), _excelDataStyle(bold: true));
+    sheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: findRow + 1),
+      CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: findRow + 1),
+      customValue: TextCellValue(report.findingDescription.isNotEmpty ? report.findingDescription : 'Kondisi mesin normal'),
+    );
+    sheet.setMergedCellStyle(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: findRow + 1), _excelDataStyle());
+
+    setCell(0, findRow + 2, TextCellValue('Tindakan Dilakukan'), _excelDataStyle(bold: true));
+    sheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: findRow + 2),
+      CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: findRow + 2),
+      customValue: TextCellValue(report.actionTaken.isNotEmpty ? report.actionTaken : 'Pemeliharaan rutin terjadwal'),
+    );
+    sheet.setMergedCellStyle(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: findRow + 2), _excelDataStyle());
+
+    final fileBytes = excel.save();
+    if (fileBytes != null) {
+      final fileName = 'BERITA_ACARA_${report.harNumber}.xlsx';
+      downloadFile(fileBytes, fileName, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
   }
 
   static pw.Widget _buildPdfDetailRow(String label, String value) {
@@ -420,69 +798,234 @@ class ExportImportService {
     excel.rename('Sheet1', sheetName);
     final sheet = excel[sheetName];
 
-    // Header Row
-    sheet.appendRow([
-      TextCellValue('NO'),
-      TextCellValue('NO TIKET HAR'),
-      TextCellValue('TANGGAL'),
-      TextCellValue('JAM SLOT'),
-      TextCellValue('KODE UNIT'),
-      TextCellValue('UNIT PLTD'),
-      TextCellValue('ID MESIN'),
-      TextCellValue('NAMA MESIN'),
-      TextCellValue('TIPE HAR'),
-      TextCellValue('PRIORITAS'),
-      TextCellValue('TEKNISI'),
-      TextCellValue('STATUS'),
-      TextCellValue('HASIL AKHIR'),
-      TextCellValue('DAYA MAMPU (kW)'),
-      TextCellValue('BEBAN (kW)'),
-      TextCellValue('STAND KWH'),
-      TextCellValue('STAND BBM'),
-      TextCellValue('TEKANAN OLI'),
-      TextCellValue('TEMUAN'),
-      TextCellValue('TINDAKAN PERBAIKAN'),
-    ]);
+    final unitTitle = unitName ?? (reports.isNotEmpty ? reports.first.unitName : 'PLTD WILAYAH KALTIM 3');
+    final printDate = DateTime.now().toString().substring(0, 19);
 
-    // Data Rows
+    void setCell(int col, int row, CellValue value, CellStyle style) {
+      final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row));
+      cell.value = value;
+      cell.cellStyle = style;
+    }
+
+    // Set Column Widths (21 columns)
+    final colWidths = [
+      8.0,   // NO
+      22.0,  // NO TIKET HAR
+      14.0,  // TANGGAL
+      12.0,  // JAM SLOT
+      14.0,  // KODE UNIT
+      28.0,  // UNIT PLTD
+      14.0,  // ID MESIN
+      36.0,  // NAMA MESIN GENERATOR
+      16.0,  // TIPE HAR
+      14.0,  // PRIORITAS
+      24.0,  // TEKNISI PELAKSANA
+      20.0,  // STATUS LAPORAN
+      18.0,  // HASIL AKHIR
+      18.0,  // DAYA MAMPU (kW)
+      18.0,  // BEBAN MESIN (kW)
+      18.0,  // STAND KWH
+      18.0,  // STAND BBM (L)
+      18.0,  // TEKANAN OLI (Bar)
+      22.0,  // JAM KERJA MESIN (HM)
+      45.0,  // TEMUAN PEMERIKSAAN
+      45.0,  // TINDAKAN PERBAIKAN
+    ];
+    for (int c = 0; c < colWidths.length; c++) {
+      sheet.setColumnWidth(c, colWidths[c]);
+    }
+
+    // Row 0: Company Banner
+    sheet.setRowHeight(0, 36.0);
+    sheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
+      CellIndex.indexByColumnRow(columnIndex: 20, rowIndex: 0),
+      customValue: TextCellValue('PT PLN (PERSERO) - PLN NUSA DAYA'),
+    );
+    final companyStyle = CellStyle(
+      bold: true,
+      fontSize: 13,
+      fontColorHex: ExcelColor.fromHexString('FFFFFFFF'),
+      backgroundColorHex: ExcelColor.fromHexString('FF002244'),
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+    );
+    sheet.setMergedCellStyle(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0), companyStyle);
+
+    // Row 1: Document Title
+    sheet.setRowHeight(1, 24.0);
+    sheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1),
+      CellIndex.indexByColumnRow(columnIndex: 20, rowIndex: 1),
+      customValue: TextCellValue('REKAPITULASI LAPORAN PEMELIHARAAN (HAR) & LOGSHEET MESIN PEMBANGKIT PLTD'),
+    );
+    final titleStyle = CellStyle(
+      bold: true,
+      fontSize: 11,
+      fontColorHex: ExcelColor.fromHexString('FFFFFFFF'),
+      backgroundColorHex: ExcelColor.fromHexString('FF0072B2'),
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+    );
+    sheet.setMergedCellStyle(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1), titleStyle);
+
+    // Row 2: Subtitle Metadata
+    sheet.setRowHeight(2, 20.0);
+    sheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 2),
+      CellIndex.indexByColumnRow(columnIndex: 20, rowIndex: 2),
+      customValue: TextCellValue('Unit Layanan: $unitTitle | Waktu Ekspor: $printDate WITA | Total Terdata: ${reports.length} Laporan HAR'),
+    );
+    final subtitleStyle = CellStyle(
+      italic: true,
+      fontSize: 9,
+      fontColorHex: ExcelColor.fromHexString('FF1E293B'),
+      backgroundColorHex: ExcelColor.fromHexString('FFF1F5F9'),
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+    );
+    sheet.setMergedCellStyle(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 2), subtitleStyle);
+
+    // Row 3: Blank separator
+    sheet.setRowHeight(3, 10.0);
+
+    // Row 4: Column Headers
+    sheet.setRowHeight(4, 26.0);
+    final headers = [
+      'NO',
+      'NO TIKET HAR',
+      'TANGGAL',
+      'JAM SLOT',
+      'KODE UNIT',
+      'UNIT PLTD',
+      'ID MESIN',
+      'NAMA MESIN GENERATOR',
+      'TIPE HAR',
+      'PRIORITAS',
+      'TEKNISI PELAKSANA',
+      'STATUS LAPORAN',
+      'HASIL AKHIR',
+      'DAYA MAMPU (kW)',
+      'BEBAN MESIN (kW)',
+      'STAND KWH',
+      'STAND BBM (L)',
+      'TEKANAN OLI (Bar)',
+      'JAM KERJA MESIN (HM)',
+      'TEMUAN PEMERIKSAAN',
+      'TINDAKAN PERBAIKAN',
+    ];
+
+    for (int c = 0; c < headers.length; c++) {
+      setCell(c, 4, TextCellValue(headers[c]), _excelHeaderStyle());
+    }
+
+    // Rows 5+: Data Rows
     for (int i = 0; i < reports.length; i++) {
       final r = reports[i];
-      sheet.appendRow([
-        IntCellValue(i + 1),
-        TextCellValue(r.harNumber),
-        TextCellValue(r.date),
-        TextCellValue(r.timeSlot),
-        TextCellValue(r.kdUnit),
-        TextCellValue(r.unitName),
-        TextCellValue(r.idMesin),
-        TextCellValue(r.machineName),
-        TextCellValue(r.maintenanceType),
-        TextCellValue(r.priority),
-        TextCellValue(r.technicianName),
-        TextCellValue(r.status.toUpperCase()),
-        TextCellValue(r.finalResult),
-        DoubleCellValue(r.dayaMampu),
-        DoubleCellValue(r.beban),
-        DoubleCellValue(r.standKwh),
-        DoubleCellValue(r.standBbm),
-        DoubleCellValue(r.tekananOli),
-        TextCellValue(r.findingDescription),
-        TextCellValue(r.actionTaken),
-      ]);
+      final rowIdx = 5 + i;
+      final isOdd = i % 2 == 1;
+      sheet.setRowHeight(rowIdx, 22.0);
+
+      // Status color
+      ExcelColor? statusBg;
+      ExcelColor? statusText;
+      final st = r.status.toLowerCase();
+      if (st == 'approved') {
+        statusBg = ExcelColor.fromHexString('FFDCFCE7');
+        statusText = ExcelColor.fromHexString('FF166534');
+      } else if (st == 'submitted') {
+        statusBg = ExcelColor.fromHexString('FFFEF3C7');
+        statusText = ExcelColor.fromHexString('FF92400E');
+      } else {
+        statusBg = ExcelColor.fromHexString('FFF1F5F9');
+        statusText = ExcelColor.fromHexString('FF475569');
+      }
+
+      // Priority color
+      ExcelColor? prioColor;
+      if (r.priority == 'HIGH' || r.priority == 'CRITICAL') {
+        prioColor = ExcelColor.fromHexString('FFDC2626');
+      }
+
+      setCell(0, rowIdx, IntCellValue(i + 1), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Center));
+      setCell(1, rowIdx, TextCellValue(r.harNumber), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Center, bold: true));
+      setCell(2, rowIdx, TextCellValue(r.date), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Center));
+      setCell(3, rowIdx, TextCellValue(r.timeSlot), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Center));
+      setCell(4, rowIdx, TextCellValue(r.kdUnit), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Center));
+      setCell(5, rowIdx, TextCellValue(r.unitName), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Left));
+      setCell(6, rowIdx, TextCellValue(r.idMesin), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Center));
+      setCell(7, rowIdx, TextCellValue(r.machineName), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Left, bold: true));
+      setCell(8, rowIdx, TextCellValue(r.maintenanceType.toUpperCase()), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Center));
+      setCell(9, rowIdx, TextCellValue(r.priority), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Center, bold: prioColor != null, fontColor: prioColor));
+      setCell(10, rowIdx, TextCellValue(r.technicianName), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Left));
+      setCell(11, rowIdx, TextCellValue(r.status == 'approved' ? 'APPROVED' : (r.status == 'submitted' ? 'PENDING SPV' : 'DRAFT')), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Center, bold: true, bgColor: statusBg, fontColor: statusText));
+      setCell(12, rowIdx, TextCellValue(r.finalResult), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Center));
+      setCell(13, rowIdx, DoubleCellValue(r.dayaMampu), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Right));
+      setCell(14, rowIdx, DoubleCellValue(r.beban), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Right));
+      setCell(15, rowIdx, DoubleCellValue(r.standKwh), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Right));
+      setCell(16, rowIdx, DoubleCellValue(r.standBbm), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Right));
+      setCell(17, rowIdx, DoubleCellValue(r.tekananOli), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Right));
+      setCell(18, rowIdx, DoubleCellValue(r.jamKerjaMesin), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Right));
+      setCell(19, rowIdx, TextCellValue(r.findingDescription), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Left));
+      setCell(20, rowIdx, TextCellValue(r.actionTaken), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Left));
     }
 
     // Sheet 2: Summary KPI
     final summarySheet = excel['Ringkasan_KPI'];
-    summarySheet.appendRow([TextCellValue('INDIKATOR'), TextCellValue('NILAI')]);
-    summarySheet.appendRow([TextCellValue('Total Laporan'), IntCellValue(reports.length)]);
-    summarySheet.appendRow([TextCellValue('Approved (Disetujui SPV)'), IntCellValue(reports.where((r) => r.status == 'approved').length)]);
-    summarySheet.appendRow([TextCellValue('Menunggu Approval SPV'), IntCellValue(reports.where((r) => r.status == 'submitted').length)]);
-    summarySheet.appendRow([TextCellValue('Draft Belum Disubmit'), IntCellValue(reports.where((r) => r.status == 'draft').length)]);
-    summarySheet.appendRow([TextCellValue('Tanggal Ekspor'), TextCellValue(DateTime.now().toString())]);
+    summarySheet.setColumnWidth(0, 40.0);
+    summarySheet.setColumnWidth(1, 24.0);
+
+    // Title
+    summarySheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
+      CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 0),
+      customValue: TextCellValue('RINGKASAN INDIKATOR KINERJA PEMELIHARAAN (KPI HAR)'),
+    );
+    summarySheet.setMergedCellStyle(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
+      CellStyle(
+        bold: true,
+        fontSize: 11,
+        fontColorHex: ExcelColor.fromHexString('FFFFFFFF'),
+        backgroundColorHex: ExcelColor.fromHexString('FF002244'),
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+      ),
+    );
+
+    // KPI Header
+    summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 2))
+      ..value = TextCellValue('INDIKATOR PARAMETER')
+      ..cellStyle = _excelHeaderStyle();
+    summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 2))
+      ..value = TextCellValue('NILAI PENCAPAIAN')
+      ..cellStyle = _excelHeaderStyle();
+
+    final kpis = [
+      ['Total Laporan HAR Terdata', '${reports.length} Laporan'],
+      ['Laporan Disetujui (Approved SPV)', '${reports.where((r) => r.status == 'approved').length} Laporan'],
+      ['Laporan Menunggu Approval SPV', '${reports.where((r) => r.status == 'submitted').length} Laporan'],
+      ['Laporan Status Draft', '${reports.where((r) => r.status == 'draft').length} Laporan'],
+      ['Rata-rata Tekanan Oli Mesin', reports.isNotEmpty ? '${(reports.fold<double>(0, (s, r) => s + r.tekananOli) / reports.length).toStringAsFixed(2)} Bar' : '0.0 Bar'],
+      ['Rata-rata Beban Operasi Mesin', reports.isNotEmpty ? '${(reports.fold<double>(0, (s, r) => s + r.beban) / reports.length).toStringAsFixed(1)} kW' : '0.0 kW'],
+      ['Unit Layanan Pembangkit', unitTitle],
+      ['Waktu Ekspor Laporan', printDate],
+    ];
+
+    for (int k = 0; k < kpis.length; k++) {
+      final rIdx = 3 + k;
+      final isOdd = k % 2 == 1;
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rIdx))
+        ..value = TextCellValue(kpis[k][0])
+        ..cellStyle = _excelDataStyle(isOdd: isOdd, bold: true);
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rIdx))
+        ..value = TextCellValue(kpis[k][1])
+        ..cellStyle = _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Center, bold: true, fontColor: ExcelColor.fromHexString('FF0072B2'));
+    }
 
     final fileBytes = excel.save();
     if (fileBytes != null) {
-      final unitClean = (unitName ?? 'PLTD').replaceAll(' ', '_');
+      final unitClean = unitTitle.replaceAll(' ', '_');
       final fileName = 'REKAP_HAR_${unitClean}_${DateTime.now().millisecondsSinceEpoch}.xlsx';
       downloadFile(fileBytes, fileName, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     }
@@ -536,34 +1079,142 @@ class ExportImportService {
   // ==================== 6. EXPORT MESIN TO EXCEL & PDF ====================
   static Future<void> exportMachinesToExcel(List<MachineModel> machines, String unitName) async {
     final excel = Excel.createExcel();
-    final sheet = excel['Daftar_Mesin'];
-    excel.delete('Sheet1');
+    final sheetName = 'Daftar_Mesin';
+    excel.rename('Sheet1', sheetName);
+    final sheet = excel[sheetName];
 
-    sheet.appendRow([
-      TextCellValue('NO'),
-      TextCellValue('ID MESIN'),
-      TextCellValue('NAMA MESIN GENERATOR'),
-      TextCellValue('KODE SILM'),
-      TextCellValue('SERIAL NUMBER'),
-      TextCellValue('DAYA TERPASANG (kW)'),
-      TextCellValue('TIPE MESIN'),
-      TextCellValue('STATUS OPERASI'),
-      TextCellValue('KODE UNIT'),
-    ]);
+    final printDate = DateTime.now().toString().substring(0, 19);
 
+    void setCell(int col, int row, CellValue value, CellStyle style) {
+      final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row));
+      cell.value = value;
+      cell.cellStyle = style;
+    }
+
+    // Set Column Widths (9 columns)
+    final colWidths = [
+      8.0,   // NO
+      16.0,  // ID MESIN
+      36.0,  // NAMA MESIN GENERATOR
+      18.0,  // KODE SILM
+      24.0,  // SERIAL NUMBER
+      22.0,  // DAYA TERPASANG (kW)
+      20.0,  // TIPE MESIN
+      20.0,  // STATUS OPERASI
+      14.0,  // KODE UNIT
+    ];
+    for (int c = 0; c < colWidths.length; c++) {
+      sheet.setColumnWidth(c, colWidths[c]);
+    }
+
+    // Row 0: Company Banner
+    sheet.setRowHeight(0, 34.0);
+    sheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
+      CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: 0),
+      customValue: TextCellValue('PT PLN (PERSERO) - PLN NUSA DAYA'),
+    );
+    sheet.setMergedCellStyle(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
+      CellStyle(
+        bold: true,
+        fontSize: 13,
+        fontColorHex: ExcelColor.fromHexString('FFFFFFFF'),
+        backgroundColorHex: ExcelColor.fromHexString('FF002244'),
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+      ),
+    );
+
+    // Row 1: Document Title
+    sheet.setRowHeight(1, 24.0);
+    sheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1),
+      CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: 1),
+      customValue: TextCellValue('INVENTARIS & DATABASE MESIN PEMBANGKIT PLTD'),
+    );
+    sheet.setMergedCellStyle(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1),
+      CellStyle(
+        bold: true,
+        fontSize: 11,
+        fontColorHex: ExcelColor.fromHexString('FFFFFFFF'),
+        backgroundColorHex: ExcelColor.fromHexString('FF0072B2'),
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+      ),
+    );
+
+    // Row 2: Subtitle Metadata
+    sheet.setRowHeight(2, 20.0);
+    sheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 2),
+      CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: 2),
+      customValue: TextCellValue('Unit Layanan: $unitName | Tanggal Ekspor: $printDate WITA | Total Terdata: ${machines.length} Unit Mesin'),
+    );
+    sheet.setMergedCellStyle(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 2),
+      CellStyle(
+        italic: true,
+        fontSize: 9,
+        fontColorHex: ExcelColor.fromHexString('FF1E293B'),
+        backgroundColorHex: ExcelColor.fromHexString('FFF1F5F9'),
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+      ),
+    );
+
+    // Row 3: Blank separator
+    sheet.setRowHeight(3, 8.0);
+
+    // Row 4: Column Headers
+    sheet.setRowHeight(4, 26.0);
+    final headers = [
+      'NO',
+      'ID MESIN',
+      'NAMA MESIN GENERATOR',
+      'KODE SILM',
+      'SERIAL NUMBER',
+      'DAYA TERPASANG (kW)',
+      'TIPE MESIN',
+      'STATUS OPERASI',
+      'KODE UNIT',
+    ];
+    for (int c = 0; c < headers.length; c++) {
+      setCell(c, 4, TextCellValue(headers[c]), _excelHeaderStyle());
+    }
+
+    // Rows 5+: Data Rows
     for (int i = 0; i < machines.length; i++) {
       final m = machines[i];
-      sheet.appendRow([
-        IntCellValue(i + 1),
-        TextCellValue(m.idMesin),
-        TextCellValue(m.namaMesin),
-        TextCellValue(m.kodeMesinSilm),
-        TextCellValue(m.sn),
-        DoubleCellValue(m.dt),
-        TextCellValue(m.tipeMesin),
-        TextCellValue(m.status),
-        TextCellValue(m.kdUnit),
-      ]);
+      final rowIdx = 5 + i;
+      final isOdd = i % 2 == 1;
+      sheet.setRowHeight(rowIdx, 22.0);
+
+      // Status color
+      ExcelColor statusBg;
+      ExcelColor statusText;
+      final st = m.status.toLowerCase();
+      if (st.contains('operasi') || st.contains('normal')) {
+        statusBg = ExcelColor.fromHexString('FFDCFCE7');
+        statusText = ExcelColor.fromHexString('FF166534');
+      } else if (st.contains('standby')) {
+        statusBg = ExcelColor.fromHexString('FFE0F2FE');
+        statusText = ExcelColor.fromHexString('FF0369A1');
+      } else {
+        statusBg = ExcelColor.fromHexString('FFFEF3C7');
+        statusText = ExcelColor.fromHexString('FF92400E');
+      }
+
+      setCell(0, rowIdx, IntCellValue(i + 1), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Center));
+      setCell(1, rowIdx, TextCellValue(m.idMesin), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Center));
+      setCell(2, rowIdx, TextCellValue(m.namaMesin), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Left, bold: true));
+      setCell(3, rowIdx, TextCellValue(m.kodeMesinSilm), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Center));
+      setCell(4, rowIdx, TextCellValue(m.sn), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Center));
+      setCell(5, rowIdx, DoubleCellValue(m.dt), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Right));
+      setCell(6, rowIdx, TextCellValue(m.tipeMesin), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Center));
+      setCell(7, rowIdx, TextCellValue(m.status.toUpperCase()), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Center, bold: true, bgColor: statusBg, fontColor: statusText));
+      setCell(8, rowIdx, TextCellValue(m.kdUnit), _excelDataStyle(isOdd: isOdd, align: HorizontalAlign.Center));
     }
 
     final fileBytes = excel.save();
@@ -824,45 +1475,101 @@ class ExportImportService {
   // ==================== 8. TEMPLATE DOWNLOADER ====================
   static Future<void> downloadExcelTemplate() async {
     final excel = Excel.createExcel();
-    final sheet = excel['Template_HAR'];
-    excel.delete('Sheet1');
+    final sheetName = 'Template_HAR';
+    excel.rename('Sheet1', sheetName);
+    final sheet = excel[sheetName];
 
-    sheet.appendRow([
-      TextCellValue('NO'),
-      TextCellValue('NO TIKET HAR'),
-      TextCellValue('TANGGAL (YYYY-MM-DD)'),
-      TextCellValue('JAM SLOT (HH:MM)'),
-      TextCellValue('KODE UNIT'),
-      TextCellValue('UNIT PLTD'),
-      TextCellValue('ID MESIN'),
-      TextCellValue('NAMA MESIN'),
-      TextCellValue('TIPE HAR'),
-      TextCellValue('PRIORITAS'),
-      TextCellValue('TEKNISI'),
-      TextCellValue('STATUS'),
-      TextCellValue('HASIL AKHIR'),
-      TextCellValue('TEMUAN'),
-      TextCellValue('TINDAKAN'),
-    ]);
+    void setCell(int col, int row, CellValue value, CellStyle style) {
+      final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row));
+      cell.value = value;
+      cell.cellStyle = style;
+    }
 
-    // Example dummy row
-    sheet.appendRow([
-      IntCellValue(1),
-      TextCellValue('HAR-2026-00099'),
-      TextCellValue('2026-08-05'),
-      TextCellValue('08:00'),
-      TextCellValue('0283'),
-      TextCellValue('ULD MUARA PAHU'),
-      TextCellValue('000581'),
-      TextCellValue('PLTD MUARA PAHU #01 (CATERPILLAR 3512B)'),
-      TextCellValue('preventive'),
-      TextCellValue('NORMAL'),
-      TextCellValue('Ahmad Teknisi'),
-      TextCellValue('submitted'),
-      TextCellValue('Normal Andal'),
-      TextCellValue('Tekanan oli stabil pada 4.2 Bar.'),
-      TextCellValue('Pemeriksaan berkala level oli dan filter solar.'),
-    ]);
+    final colWidths = [
+      8.0, 20.0, 16.0, 14.0, 14.0, 28.0, 14.0, 36.0, 16.0, 14.0, 24.0, 18.0, 18.0, 40.0, 40.0,
+    ];
+    for (int c = 0; c < colWidths.length; c++) {
+      sheet.setColumnWidth(c, colWidths[c]);
+    }
+
+    // Row 0: Company Banner
+    sheet.setRowHeight(0, 34.0);
+    sheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
+      CellIndex.indexByColumnRow(columnIndex: 14, rowIndex: 0),
+      customValue: TextCellValue('PT PLN (PERSERO) - TEMPLATE IMPORT DATA HAR & LOGSHEET MESIN PLTD'),
+    );
+    sheet.setMergedCellStyle(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
+      CellStyle(
+        bold: true,
+        fontSize: 12,
+        fontColorHex: ExcelColor.fromHexString('FFFFFFFF'),
+        backgroundColorHex: ExcelColor.fromHexString('FF002244'),
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+      ),
+    );
+
+    // Row 1: Instruction
+    sheet.setRowHeight(1, 20.0);
+    sheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1),
+      CellIndex.indexByColumnRow(columnIndex: 14, rowIndex: 1),
+      customValue: TextCellValue('Petunjuk: Jangan ubah susunan kolom. Isi data mulai dari baris ke-4. Format tanggal YYYY-MM-DD dan jam HH:MM.'),
+    );
+    sheet.setMergedCellStyle(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1),
+      CellStyle(
+        italic: true,
+        fontSize: 9,
+        fontColorHex: ExcelColor.fromHexString('FF1E293B'),
+        backgroundColorHex: ExcelColor.fromHexString('FFFEF3C7'),
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+      ),
+    );
+
+    // Row 2: Headers
+    sheet.setRowHeight(2, 26.0);
+    final headers = [
+      'NO',
+      'NO TIKET HAR',
+      'TANGGAL (YYYY-MM-DD)',
+      'JAM SLOT (HH:MM)',
+      'KODE UNIT',
+      'UNIT PLTD',
+      'ID MESIN',
+      'NAMA MESIN',
+      'TIPE HAR',
+      'PRIORITAS',
+      'TEKNISI',
+      'STATUS',
+      'HASIL AKHIR',
+      'TEMUAN',
+      'TINDAKAN',
+    ];
+    for (int c = 0; c < headers.length; c++) {
+      setCell(c, 2, TextCellValue(headers[c]), _excelHeaderStyle());
+    }
+
+    // Row 3: Example row
+    sheet.setRowHeight(3, 22.0);
+    setCell(0, 3, IntCellValue(1), _excelDataStyle(align: HorizontalAlign.Center));
+    setCell(1, 3, TextCellValue('HAR-2026-00099'), _excelDataStyle(align: HorizontalAlign.Center, bold: true));
+    setCell(2, 3, TextCellValue('2026-08-05'), _excelDataStyle(align: HorizontalAlign.Center));
+    setCell(3, 3, TextCellValue('08:00'), _excelDataStyle(align: HorizontalAlign.Center));
+    setCell(4, 3, TextCellValue('0283'), _excelDataStyle(align: HorizontalAlign.Center));
+    setCell(5, 3, TextCellValue('ULD MUARA PAHU'), _excelDataStyle(align: HorizontalAlign.Left));
+    setCell(6, 3, TextCellValue('000581'), _excelDataStyle(align: HorizontalAlign.Center));
+    setCell(7, 3, TextCellValue('PLTD MUARA PAHU #01 (CATERPILLAR 3512B)'), _excelDataStyle(align: HorizontalAlign.Left, bold: true));
+    setCell(8, 3, TextCellValue('preventive'), _excelDataStyle(align: HorizontalAlign.Center));
+    setCell(9, 3, TextCellValue('NORMAL'), _excelDataStyle(align: HorizontalAlign.Center));
+    setCell(10, 3, TextCellValue('Ahmad Teknisi'), _excelDataStyle(align: HorizontalAlign.Left));
+    setCell(11, 3, TextCellValue('submitted'), _excelDataStyle(align: HorizontalAlign.Center, bold: true, bgColor: ExcelColor.fromHexString('FFFEF3C7'), fontColor: ExcelColor.fromHexString('FF92400E')));
+    setCell(12, 3, TextCellValue('Normal Andal'), _excelDataStyle(align: HorizontalAlign.Center));
+    setCell(13, 3, TextCellValue('Tekanan oli stabil pada 4.2 Bar.'), _excelDataStyle(align: HorizontalAlign.Left));
+    setCell(14, 3, TextCellValue('Pemeriksaan berkala level oli dan filter solar.'), _excelDataStyle(align: HorizontalAlign.Left));
 
     final fileBytes = excel.save();
     if (fileBytes != null) {

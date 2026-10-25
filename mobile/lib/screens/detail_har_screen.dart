@@ -97,6 +97,37 @@ class _DetailHARScreenState extends State<DetailHARScreen> {
     }
   }
 
+  void _handleDownloadExcel() async {
+    final r = _report;
+    if (r == null) return;
+    setState(() => _isExporting = true);
+    try {
+      await ExportImportService.exportSingleHARToExcel(r);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.table_chart_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Berita Acara Excel (.xlsx) ${r.harNumber} berhasil diunduh.',
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: AppTheme.accentGreen,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -1744,32 +1775,47 @@ class _DetailHARScreenState extends State<DetailHARScreen> {
           children: [
             Row(
               children: [
-                // Secondary Action: Download PDF
-                Expanded(
-                  flex: isApproved ? 1 : 1,
-                  child: OutlinedButton.icon(
-                    onPressed: _isExporting ? null : _handleDownloadPdf,
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFFDC2626), width: 1.5),
-                      foregroundColor: const Color(0xFFDC2626),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    icon: _isExporting
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFDC2626)))
-                        : const Icon(Icons.picture_as_pdf_rounded, size: 18),
-                    label: const Text(
-                      'Cetak PDF',
-                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
-                    ),
+                // Secondary Action 1: Download PDF
+                OutlinedButton.icon(
+                  onPressed: _isExporting ? null : _handleDownloadPdf,
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFFDC2626), width: 1.5),
+                    foregroundColor: const Color(0xFFDC2626),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: _isExporting
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFDC2626)))
+                      : const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                  label: const Text(
+                    'PDF',
+                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Secondary Action 2: Download Excel
+                OutlinedButton.icon(
+                  onPressed: _isExporting ? null : _handleDownloadExcel,
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFF16A34A), width: 1.5),
+                    foregroundColor: const Color(0xFF16A34A),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: _isExporting
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF16A34A)))
+                      : const Icon(Icons.table_chart_rounded, size: 18),
+                  label: const Text(
+                    'Excel',
+                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
                   ),
                 ),
 
                 // Primary Action: Approve (if not approved yet)
                 if (!isApproved) ...[
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Expanded(
-                    flex: 2,
                     child: Container(
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
@@ -1799,7 +1845,7 @@ class _DetailHARScreenState extends State<DetailHARScreen> {
                             ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                             : const Icon(Icons.verified_rounded, size: 18),
                         label: const Text(
-                          'Setujui & Approve (SPV)',
+                          'Approve (SPV)',
                           style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
                         ),
                       ),
