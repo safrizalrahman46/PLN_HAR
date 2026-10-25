@@ -1,5 +1,8 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:confetti/confetti.dart';
+import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
 import '../data/api_service.dart';
@@ -61,10 +64,13 @@ class _BuatHARScreenState extends State<BuatHARScreen> {
   final _temuanController = TextEditingController(text: 'Kondisi komponen mesin secara umum baik dan dalam batas toleransi aman.');
   final _tindakanController = TextEditingController(text: 'Pemeriksaan rutin berkala, pembersihan filter, dan pengencangan koneksi.');
 
-  // Step 4: Foto
-  bool _hasPhotoBefore = true;
-  bool _hasPhotoProcess = true;
-  bool _hasPhotoAfter = true;
+  // Step 4: Foto Dokumentasi Lapangan (Real Camera & Galeri)
+  Uint8List? _photoBeforeBytes;
+  String? _photoBeforeBase64;
+  Uint8List? _photoProcessBytes;
+  String? _photoProcessBase64;
+  Uint8List? _photoAfterBytes;
+  String? _photoAfterBase64;
 
   final List<String> _allTimeSlots = [
     "00:00", "01:00", "02:00", "03:00", "04:00", "05:00", "06:00",
@@ -176,9 +182,9 @@ class _BuatHARScreenState extends State<BuatHARScreen> {
       tekananOli: double.tryParse(_tekOliController.text) ?? 4.2,
       checklists: _checklists,
       photos: [
-        if (_hasPhotoBefore) 'foto_before.jpg',
-        if (_hasPhotoProcess) 'foto_process.jpg',
-        if (_hasPhotoAfter) 'foto_after.jpg',
+        if (_photoBeforeBase64 != null) _photoBeforeBase64!,
+        if (_photoProcessBase64 != null) _photoProcessBase64!,
+        if (_photoAfterBase64 != null) _photoAfterBase64!,
       ],
     );
 
@@ -681,13 +687,13 @@ class _BuatHARScreenState extends State<BuatHARScreen> {
       children: [
         const Text('Dokumentasi Foto Lapangan', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppTheme.textDark)),
         const SizedBox(height: 4),
-        const Text('Lampirkan foto fisik komponen mesin sebelum, saat, dan sesudah pemeliharaan.', style: TextStyle(fontSize: 12, color: AppTheme.outline)),
+        const Text('Lampirkan foto fisik komponen mesin sebelum, saat, dan sesudah pemeliharaan langsung dari kamera HP atau galeri.', style: TextStyle(fontSize: 12, color: AppTheme.outline)),
         const SizedBox(height: 14),
-        _buildPhotoSlot('Foto Sebelum (Before)', _hasPhotoBefore, () => setState(() => _hasPhotoBefore = !_hasPhotoBefore)),
+        _buildPhotoSlot('Foto Sebelum (Before)', 'before', _photoBeforeBytes),
         const SizedBox(height: 10),
-        _buildPhotoSlot('Foto Saat Pekerjaan (Process)', _hasPhotoProcess, () => setState(() => _hasPhotoProcess = !_hasPhotoProcess)),
+        _buildPhotoSlot('Foto Saat Pekerjaan (Process)', 'process', _photoProcessBytes),
         const SizedBox(height: 10),
-        _buildPhotoSlot('Foto Setelah Selesai (After)', _hasPhotoAfter, () => setState(() => _hasPhotoAfter = !_hasPhotoAfter)),
+        _buildPhotoSlot('Foto Setelah Selesai (After)', 'after', _photoAfterBytes),
       ],
     );
   }
@@ -906,47 +912,455 @@ class _BuatHARScreenState extends State<BuatHARScreen> {
     );
   }
 
-  Widget _buildPhotoSlot(String label, bool isAttached, VoidCallback onTap) {
+  Future<void> _pickPhoto(ImageSource source, String type) async {
+    try {
+      final picker = ImagePicker();
+      final XFile? pickedFile = await picker.pickImage(
+        source: source,
+        maxWidth: 1280,
+        maxHeight: 1280,
+        imageQuality: 82,
+      );
+
+      if (pickedFile == null) return;
+
+      final bytes = await pickedFile.readAsBytes();
+      final base64Str = base64Encode(bytes);
+
+      if (!mounted) return;
+      setState(() {
+        if (type == 'before') {
+          _photoBeforeBytes = bytes;
+          _photoBeforeBase64 = base64Str;
+        } else if (type == 'process') {
+          _photoProcessBytes = bytes;
+          _photoProcessBase64 = base64Str;
+        } else if (type == 'after') {
+          _photoAfterBytes = bytes;
+          _photoAfterBase64 = base64Str;
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Foto ${type == "before" ? "Sebelum" : type == "process" ? "Pekerjaan" : "Setelah Selesai"} berhasil disimpan!',
+              ),
+            ],
+          ),
+          backgroundColor: AppTheme.accentGreen,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal membuka kamera/galeri: $e'),
+          backgroundColor: AppTheme.accentRed,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  void _showPhotoOptions(String title, String type, Uint8List? currentPhoto) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppTheme.textDark)),
+                      const SizedBox(height: 2),
+                      const Text('Pilih metode pengambilan dokumentasi fisik', style: TextStyle(fontSize: 12, color: AppTheme.outline)),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  icon: const Icon(Icons.close_rounded, color: AppTheme.outline),
+                ),
+              ],
+            ),
+            const Divider(height: 20),
+            // Button 1: Camera
+            InkWell(
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickPhoto(ImageSource.camera, type);
+              },
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 22),
+                    ),
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Ambil Foto Kamera Langsung', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppTheme.primaryDark)),
+                          SizedBox(height: 2),
+                          Text('Buka kamera HP & potret fisik mesin saat ini', style: TextStyle(fontSize: 11, color: AppTheme.outline)),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppTheme.primary),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Button 2: Gallery
+            InkWell(
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickPhoto(ImageSource.gallery, type);
+              },
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppTheme.outlineVariant),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF64748B),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.photo_library_rounded, color: Colors.white, size: 22),
+                    ),
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Pilih dari Galeri Smartphone', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppTheme.textDark)),
+                          SizedBox(height: 2),
+                          Text('Ambil file foto yang sudah tersimpan di HP', style: TextStyle(fontSize: 11, color: AppTheme.outline)),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF64748B)),
+                  ],
+                ),
+              ),
+            ),
+            if (currentPhoto != null) ...[
+              const SizedBox(height: 10),
+              // Button 3: Preview
+              InkWell(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showFullPhotoPreview(title, currentPhoto);
+                },
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentGreen.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppTheme.accentGreen.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentGreen,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.visibility_rounded, color: Colors.white, size: 22),
+                      ),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Lihat Foto Fullscreen & Watermark', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppTheme.accentGreen)),
+                            SizedBox(height: 2),
+                            Text('Lihat ketajaman gambar & cap geotag PLN', style: TextStyle(fontSize: 11, color: AppTheme.outline)),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppTheme.accentGreen),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Button 4: Delete
+              InkWell(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  setState(() {
+                    if (type == 'before') {
+                      _photoBeforeBytes = null;
+                      _photoBeforeBase64 = null;
+                    } else if (type == 'process') {
+                      _photoProcessBytes = null;
+                      _photoProcessBase64 = null;
+                    } else if (type == 'after') {
+                      _photoAfterBytes = null;
+                      _photoAfterBase64 = null;
+                    }
+                  });
+                },
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppTheme.accentRed.withValues(alpha: 0.3)),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.delete_outline_rounded, color: AppTheme.accentRed, size: 18),
+                      SizedBox(width: 8),
+                      Text('Hapus Foto Ini', style: TextStyle(fontWeight: FontWeight.w700, color: AppTheme.accentRed, fontSize: 13)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFullPhotoPreview(String title, Uint8List photoBytes) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: AppTheme.cardShadow,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: AppTheme.textDark)),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(ctx),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              ClipRRect(
+                child: Stack(
+                  children: [
+                    Image.memory(
+                      photoBytes,
+                      width: double.infinity,
+                      height: 280,
+                      fit: BoxFit.cover,
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Colors.black.withValues(alpha: 0.85), Colors.transparent],
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.verified_rounded, color: AppTheme.secondary, size: 14),
+                                SizedBox(width: 4),
+                                Text(
+                                  'PLN HAR DOKUMENTASI TERVERIFIKASI',
+                                  style: TextStyle(color: AppTheme.secondary, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${_activeUnit?.namaUnit ?? "ULD BATU AMPAR"} • ${_selectedMachine?.namaMesin ?? "PLTD #01"}',
+                              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                            ),
+                            Text(
+                              'Waktu: ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year} • Lat: 0.1382° S, Long: 117.4728° E',
+                              style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 9),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(14),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('Tutup Preview', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhotoSlot(String label, String type, Uint8List? photoBytes) {
+    final isAttached = photoBytes != null;
+
     return InkWell(
-      onTap: onTap,
+      onTap: () => _showPhotoOptions(label, type, photoBytes),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: isAttached ? const Color(0xFFF0FDF4) : Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: isAttached ? AppTheme.accentGreen : AppTheme.outlineVariant),
+          border: Border.all(
+            color: isAttached ? AppTheme.accentGreen : AppTheme.outlineVariant,
+            width: isAttached ? 1.5 : 1.0,
+          ),
           boxShadow: AppTheme.softShadow,
         ),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: isAttached ? AppTheme.accentGreen.withValues(alpha: 0.15) : AppTheme.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+            if (isAttached)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.memory(
+                  photoBytes,
+                  width: 52,
+                  height: 52,
+                  fit: BoxFit.cover,
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.camera_alt_rounded,
+                  color: AppTheme.primary,
+                  size: 24,
+                ),
               ),
-              child: Icon(
-                isAttached ? Icons.check_circle_rounded : Icons.camera_alt_rounded,
-                color: isAttached ? AppTheme.accentGreen : AppTheme.primary,
-                size: 24,
-              ),
-            ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppTheme.textDark)),
-                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          label,
+                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppTheme.textDark),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (isAttached) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppTheme.accentGreen.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text('TERLAMPIR', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: AppTheme.accentGreen)),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 3),
                   Text(
-                    isAttached ? 'Foto terlampir (Watermark GPS & Time aktif)' : 'Ketuk untuk mengambil / melampirkan foto',
-                    style: const TextStyle(fontSize: 11, color: AppTheme.outline),
+                    isAttached
+                        ? 'Foto fisik terlampir (Watermark GPS Aktif). Ketuk untuk opsi.'
+                        : 'Ketuk untuk mengambil / melampirkan foto',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isAttached ? const Color(0xFF16A34A) : AppTheme.outline,
+                    ),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.touch_app_rounded, size: 16, color: AppTheme.outline.withValues(alpha: 0.6)),
+            const SizedBox(width: 8),
+            Icon(
+              isAttached ? Icons.check_circle_rounded : Icons.touch_app_rounded,
+              size: 20,
+              color: isAttached ? AppTheme.accentGreen : AppTheme.outline.withValues(alpha: 0.6),
+            ),
           ],
         ),
       ),

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
@@ -1353,6 +1354,7 @@ class _DetailHARScreenState extends State<DetailHARScreen> {
                   tag: 'Kondisi Awal',
                   icon: Icons.filter_vintage_rounded,
                   color: const Color(0xFF0284C7),
+                  photoData: r.photos.isNotEmpty ? r.photos[0] : null,
                 ),
               ),
               const SizedBox(width: 10),
@@ -1362,6 +1364,7 @@ class _DetailHARScreenState extends State<DetailHARScreen> {
                   tag: 'SOP K3',
                   icon: Icons.engineering_rounded,
                   color: const Color(0xFFD97706),
+                  photoData: r.photos.length > 1 ? r.photos[1] : null,
                 ),
               ),
               const SizedBox(width: 10),
@@ -1371,6 +1374,7 @@ class _DetailHARScreenState extends State<DetailHARScreen> {
                   tag: 'Kondisi Andal',
                   icon: Icons.task_alt_rounded,
                   color: const Color(0xFF16A34A),
+                  photoData: r.photos.length > 2 ? r.photos[2] : null,
                 ),
               ),
             ],
@@ -1385,7 +1389,16 @@ class _DetailHARScreenState extends State<DetailHARScreen> {
     required String tag,
     required IconData icon,
     required Color color,
+    String? photoData,
   }) {
+    Uint8List? imageBytes;
+    if (photoData != null && photoData.isNotEmpty) {
+      try {
+        final clean = photoData.contains(',') ? photoData.split(',').last : photoData;
+        imageBytes = base64Decode(clean);
+      } catch (_) {}
+    }
+
     return InkWell(
       onTap: () {
         showDialog(
@@ -1411,33 +1424,60 @@ class _DetailHARScreenState extends State<DetailHARScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    height: 220,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [color.withValues(alpha: 0.15), color.withValues(alpha: 0.35)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(icon, size: 56, color: color),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Dokumentasi Visual Pemeliharaan',
-                          style: TextStyle(fontWeight: FontWeight.w800, color: color, fontSize: 13),
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Kamera Lapangan Resolusi HD Terverifikasi',
-                          style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                        ),
-                      ],
-                    ),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: imageBytes != null
+                        ? Stack(
+                            children: [
+                              Image.memory(
+                                imageBytes,
+                                width: double.infinity,
+                                height: 240,
+                                fit: BoxFit.cover,
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  color: Colors.black.withValues(alpha: 0.75),
+                                  child: const Text(
+                                    'PLN HAR TERVERIFIKASI • Watermark GPS Aktif',
+                                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Container(
+                            width: double.infinity,
+                            height: 220,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [color.withValues(alpha: 0.15), color.withValues(alpha: 0.35)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(icon, size: 56, color: color),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'Dokumentasi Visual Pemeliharaan',
+                                  style: TextStyle(fontWeight: FontWeight.w800, color: color, fontSize: 13),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Kamera Lapangan Resolusi HD Terverifikasi',
+                                  style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                ),
+                              ],
+                            ),
+                          ),
                   ),
                   const SizedBox(height: 14),
                   Row(
@@ -1479,9 +1519,19 @@ class _DetailHARScreenState extends State<DetailHARScreen> {
                 ),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Center(
-                child: Icon(icon, color: color, size: 28),
-              ),
+              child: imageBytes != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.memory(
+                        imageBytes,
+                        width: double.infinity,
+                        height: 72,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Center(
+                      child: Icon(icon, color: color, size: 28),
+                    ),
             ),
             const SizedBox(height: 8),
             Text(
