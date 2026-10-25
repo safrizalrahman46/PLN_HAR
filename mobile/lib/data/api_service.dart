@@ -83,7 +83,13 @@ class ApiService {
     required String phone,
     String? email,
     String? photoBase64,
+    bool clearPhoto = false,
     String? newPassword,
+    String? nip,
+    String? jabatan,
+    String? divisi,
+    String? alamat,
+    String? ttl,
   }) async {
     final current = await getCurrentUser();
     if (current == null) return null;
@@ -94,8 +100,13 @@ class ApiService {
       avatarPreset: avatarPreset,
       phone: phone,
       email: (email != null && email.isNotEmpty) ? email : current.email,
-      photoBase64: photoBase64 ?? current.photoBase64,
+      photoBase64: clearPhoto ? null : (photoBase64 ?? current.photoBase64),
       password: (newPassword != null && newPassword.isNotEmpty) ? newPassword : current.password,
+      nip: (nip != null && nip.isNotEmpty) ? nip : current.nip,
+      jabatan: (jabatan != null && jabatan.isNotEmpty) ? jabatan : current.jabatan,
+      divisi: (divisi != null && divisi.isNotEmpty) ? divisi : current.divisi,
+      alamat: (alamat != null && alamat.isNotEmpty) ? alamat : current.alamat,
+      ttl: (ttl != null && ttl.isNotEmpty) ? ttl : current.ttl,
     );
     await saveCurrentUser(updated);
     return updated;

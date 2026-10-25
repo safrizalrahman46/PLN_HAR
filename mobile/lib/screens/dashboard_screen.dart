@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
@@ -31,16 +35,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<HARModel> _recentReports = [];
   bool _isLoading = true;
 
-  // Profile Management State
+  // Profile Management State & Biodata Controllers
   final _profileNameController = TextEditingController();
   final _profileUsernameController = TextEditingController();
+  final _profileNipController = TextEditingController();
+  final _profileJabatanController = TextEditingController();
+  final _profileDivisiController = TextEditingController();
   final _profileEmailController = TextEditingController();
   final _profilePhoneController = TextEditingController();
+  final _profileTtlController = TextEditingController();
+  final _profileAlamatController = TextEditingController();
   final _profileBioController = TextEditingController();
   final _oldPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   String _selectedAvatarPreset = '1';
+  String? _customPhotoBase64;
   bool _obscureOldPass = true;
   bool _obscureNewPass = true;
   bool _obscureConfirmPass = true;
@@ -66,8 +76,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _pageController.dispose();
     _profileNameController.dispose();
     _profileUsernameController.dispose();
+    _profileNipController.dispose();
+    _profileJabatanController.dispose();
+    _profileDivisiController.dispose();
     _profileEmailController.dispose();
     _profilePhoneController.dispose();
+    _profileTtlController.dispose();
+    _profileAlamatController.dispose();
     _profileBioController.dispose();
     _oldPasswordController.dispose();
     _newPasswordController.dispose();
@@ -94,10 +109,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (user != null) {
           _profileNameController.text = user.name;
           _profileUsernameController.text = user.username;
+          _profileNipController.text = user.nip;
+          _profileJabatanController.text = user.jabatan;
+          _profileDivisiController.text = user.divisi;
           _profileEmailController.text = user.email;
           _profilePhoneController.text = user.phone;
+          _profileTtlController.text = user.ttl;
+          _profileAlamatController.text = user.alamat;
           _profileBioController.text = user.bio;
           _selectedAvatarPreset = user.avatarPreset;
+          _customPhotoBase64 = user.photoBase64;
         }
       });
     }
@@ -400,16 +421,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Container(
-                              width: 14,
-                              height: 14,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFFFD500),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Center(
-                                child: Icon(Icons.bolt, size: 11, color: Color(0xFF003865)),
-                              ),
+                            Image.asset(
+                              'assets/images/LOGOPLN.png',
+                              width: 16,
+                              height: 16,
+                              fit: BoxFit.contain,
                             ),
                             const SizedBox(width: 5),
                             const Text(
@@ -1686,20 +1702,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ==================== TAB 3: PROFIL TAB ====================
-  // ==================== TAB 3: PROFIL TAB (GANTI FOTO, PASSWORD, USERNAME, DLL) ====================
+  // ==================== TAB 3: PROFIL TAB (LENGKAP BIODATA & UNGGAH FOTO) ====================
   Widget _buildProfileTab() {
     final roleName = _currentUser?.role.toUpperCase() ?? 'TEKNISI';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FB),
       appBar: AppBar(
-        title: const Text('Profil & Akun Pegawai', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
+        title: const Text('Profil & Biodata Pegawai', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
         elevation: 0,
         backgroundColor: Colors.white,
         actions: [
           IconButton(
-            tooltip: 'Simpan',
+            tooltip: 'Simpan Biodata',
             icon: const Icon(Icons.check_circle_rounded, color: Color(0xFF00A2E8)),
             onPressed: _isSavingProfile ? null : _saveProfileChanges,
           ),
@@ -1710,7 +1725,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         physics: const BouncingScrollPhysics(),
         child: Column(
           children: [
-            // 1. Avatar Card with Interactive Camera Picker
+            // 1. Avatar & Profile Header Card
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
               decoration: BoxDecoration(
@@ -1727,18 +1742,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               child: Column(
                 children: [
-                  // Circular Avatar with Camera Edit Badge
+                  // Circular Avatar (Custom Photo or Preset) with Camera Edit Badge
                   Stack(
                     children: [
-                      _buildPresetAvatarWidget(_selectedAvatarPreset, 84),
+                      _buildProfileAvatarWidget(88),
                       Positioned(
                         bottom: 0,
                         right: 0,
                         child: GestureDetector(
                           onTap: _showAvatarPickerModal,
                           child: Container(
-                            width: 30,
-                            height: 30,
+                            width: 32,
+                            height: 32,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               gradient: const LinearGradient(
@@ -1755,7 +1770,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 ),
                               ],
                             ),
-                            child: const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
+                            child: const Icon(Icons.camera_alt_rounded, size: 15, color: Colors.white),
                           ),
                         ),
                       ),
@@ -1763,15 +1778,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Name & Role Tag
+                  // Name, Role & NIP
                   Text(
                     _profileNameController.text.isNotEmpty ? _profileNameController.text : (_currentUser?.name ?? 'Teknisi PLTD'),
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A), letterSpacing: -0.3),
                   ),
                   const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 6,
+                    runSpacing: 4,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -1784,7 +1801,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900, color: Color(0xFF0072B2)),
                         ),
                       ),
-                      const SizedBox(width: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
@@ -1796,34 +1812,80 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
                         ),
                       ),
+                      if (_profileNipController.text.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF3C7),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'NIP. ${_profileNipController.text}',
+                            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFFB45309)),
+                          ),
+                        ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  GestureDetector(
-                    onTap: _showAvatarPickerModal,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    children: [
+                      GestureDetector(
+                        onTap: _showAvatarPickerModal,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0F9FF),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFF00A2E8).withValues(alpha: 0.3)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.add_a_photo_rounded, size: 13, color: Color(0xFF00A2E8)),
+                              SizedBox(width: 5),
+                              Text('Unggah Foto / Pilih Avatar', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF00A2E8))),
+                            ],
+                          ),
+                        ),
                       ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.edit_rounded, size: 12, color: Color(0xFF00A2E8)),
-                          SizedBox(width: 4),
-                          Text('Ganti Foto / Avatar Profil', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF00A2E8))),
-                        ],
-                      ),
-                    ),
+                      if (_customPhotoBase64 != null)
+                        GestureDetector(
+                          onTap: () {
+                            setState(() => _customPhotoBase64 = null);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Foto kustom dihapus, beralih ke avatar karakter PLN.'),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF2F2),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.delete_outline_rounded, size: 13, color: Colors.red),
+                                SizedBox(width: 4),
+                                Text('Hapus Foto', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.red)),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 16),
 
-            // 2. Personal Information Card
+            // 2. Biodata & Identitas Kepegawaian PLN
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
@@ -1843,27 +1905,67 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.person_pin_rounded, color: Color(0xFF00A2E8), size: 18),
+                      Icon(Icons.badge_rounded, color: Color(0xFF00A2E8), size: 19),
                       SizedBox(width: 8),
-                      Text('Data Pribadi & Kredensial', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Color(0xFF0F172A))),
+                      Text('Identitas & Biodata Pegawai PLN', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Color(0xFF0F172A))),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _buildProfileInputField('Nama Lengkap Pegawai', _profileNameController, Icons.badge_outlined),
+                  _buildProfileInputField('Nama Lengkap & Gelar', _profileNameController, Icons.person_rounded),
                   const SizedBox(height: 12),
-                  _buildProfileInputField('Username / NIP Pegawai', _profileUsernameController, Icons.person_outline_rounded),
+                  _buildProfileInputField('NIP (Nomor Induk Pegawai)', _profileNipController, Icons.pin_rounded),
                   const SizedBox(height: 12),
-                  _buildProfileInputField('Email Dinas Pegawai', _profileEmailController, Icons.alternate_email_rounded, keyboardType: TextInputType.emailAddress),
+                  _buildProfileInputField('Username Kredensial Login', _profileUsernameController, Icons.account_circle_outlined),
                   const SizedBox(height: 12),
-                  _buildProfileInputField('Nomor WhatsApp / HP', _profilePhoneController, Icons.phone_android_rounded, keyboardType: TextInputType.phone),
+                  _buildProfileInputField('Jabatan / Posisi Penugasan', _profileJabatanController, Icons.engineering_rounded),
                   const SizedBox(height: 12),
-                  _buildProfileInputField('Bio / Keterangan Penugasan', _profileBioController, Icons.notes_rounded, maxLines: 2),
+                  _buildProfileInputField('Divisi / Unit Kerja Induk', _profileDivisiController, Icons.domain_rounded),
                 ],
               ),
             ),
             const SizedBox(height: 16),
 
-            // 3. Location Assignment Card
+            // 3. Kontak & Domisili
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.contact_mail_rounded, color: Color(0xFF10B981), size: 19),
+                      SizedBox(width: 8),
+                      Text('Kontak & Domisili Pegawai', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Color(0xFF0F172A))),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildProfileInputField('Email Dinas PLN', _profileEmailController, Icons.alternate_email_rounded, keyboardType: TextInputType.emailAddress),
+                  const SizedBox(height: 12),
+                  _buildProfileInputField('Nomor WhatsApp / HP Aktif', _profilePhoneController, Icons.phone_android_rounded, keyboardType: TextInputType.phone),
+                  const SizedBox(height: 12),
+                  _buildProfileInputField('Tempat & Tanggal Lahir (TTL)', _profileTtlController, Icons.cake_outlined),
+                  const SizedBox(height: 12),
+                  _buildProfileInputField('Alamat Posko / Domisili Kerja', _profileAlamatController, Icons.home_outlined),
+                  const SizedBox(height: 12),
+                  _buildProfileInputField('Bio & Catatan Penugasan', _profileBioController, Icons.notes_rounded, maxLines: 2),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // 4. Penugasan Pembangkit Aktif
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -1911,7 +2013,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 4. Change Password Collapsible Card
+            // 5. Change Password Collapsible Card
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -1990,7 +2092,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 22),
 
-            // 5. Primary Save Changes Button
+            // 6. Primary Save Changes Button
             Container(
               width: double.infinity,
               height: 52,
@@ -2028,7 +2130,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Icon(Icons.save_rounded, color: Colors.white, size: 20),
                           SizedBox(width: 8),
                           Text(
-                            'Simpan Perubahan Akun',
+                            'Simpan Perubahan Biodata & Akun',
                             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.white),
                           ),
                         ],
@@ -2037,7 +2139,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 6. Secondary Options (K3 Policy & Logout)
+            // 7. Secondary Options (K3 Policy & Logout)
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -2068,6 +2170,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ),
     );
+  }
+
+  // Profile Avatar Widget (Supports custom uploaded photo or preset)
+  Widget _buildProfileAvatarWidget(double size) {
+    if (_customPhotoBase64 != null && _customPhotoBase64!.isNotEmpty) {
+      try {
+        final imageBytes = base64Decode(_customPhotoBase64!);
+        return Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF003865).withValues(alpha: 0.25),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipOval(
+            child: Image.memory(
+              imageBytes,
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => _buildPresetAvatarWidget(_selectedAvatarPreset, size),
+            ),
+          ),
+        );
+      } catch (_) {}
+    }
+    return _buildPresetAvatarWidget(_selectedAvatarPreset, size);
   }
 
   // Preset Avatar Widget Generator
@@ -2128,7 +2264,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // Interactive Avatar Picker Modal
+  // Interactive Avatar Picker Modal (Gallery Upload + PLN Character Presets)
   void _showAvatarPickerModal() {
     final avatars = [
       {'id': '1', 'name': 'Petir PLN', 'desc': 'Karakter Utama', 'icon': Icons.bolt_rounded, 'color': const Color(0xFF00A2E8)},
@@ -2142,6 +2278,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) => Container(
           padding: const EdgeInsets.all(22),
@@ -2163,10 +2300,111 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text('Pilih Avatar Profil Pegawai', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
+              const Text('Foto & Avatar Profil Pegawai', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
               const SizedBox(height: 4),
-              const Text('Pilih karakter identitas teknisi pemeliharaan Anda', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-              const SizedBox(height: 20),
+              const Text('Unggah foto asli dari galeri HP atau pilih karakter avatar PLN', style: TextStyle(fontSize: 12, color: Color(0xFF64748B)), textAlign: TextAlign.center),
+              const SizedBox(height: 18),
+
+              // Button 1: Unggah Foto dari Galeri HP
+              InkWell(
+                onTap: () async {
+                  try {
+                    final result = await FilePicker.pickFiles(
+                      type: FileType.image,
+                      allowMultiple: false,
+                      withData: true,
+                    );
+                    if (result != null && result.files.isNotEmpty) {
+                      final file = result.files.first;
+                      Uint8List? data = file.bytes;
+                      if (data == null && file.path != null) {
+                        data = await File(file.path!).readAsBytes();
+                      }
+                      if (data != null) {
+                        final base64String = base64Encode(data);
+                        setState(() {
+                          _customPhotoBase64 = base64String;
+                        });
+                        if (ctx.mounted) {
+                          Navigator.pop(ctx);
+                        }
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Foto profil berhasil diunggah! Tekan "Simpan Perubahan Biodata & Akun" untuk menyimpan permanen.'),
+                              backgroundColor: Color(0xFF10B981),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      }
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Gagal memilih foto: $e'), backgroundColor: Colors.redAccent),
+                      );
+                    }
+                  }
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF003865), Color(0xFF0072B2)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF003865).withValues(alpha: 0.25),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.photo_library_rounded, color: Colors.white, size: 20),
+                      SizedBox(width: 8),
+                      Text(
+                        'Unggah Foto dari Galeri HP',
+                        style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white, fontSize: 13.5),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              if (_customPhotoBase64 != null) ...[
+                const SizedBox(height: 10),
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() => _customPhotoBase64 = null);
+                    setModalState(() {});
+                  },
+                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 16),
+                  label: const Text('Hapus Foto Kustom (Kembali ke Avatar PLN)', style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w700)),
+                ),
+              ],
+
+              const SizedBox(height: 16),
+              const Row(
+                children: [
+                  Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10),
+                    child: Text('Atau Pilih Karakter Avatar PLN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF94A3B8))),
+                  ),
+                  Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+                ],
+              ),
+              const SizedBox(height: 14),
+
               GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -2179,11 +2417,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 itemBuilder: (ctx, index) {
                   final a = avatars[index];
-                  final isSelected = _selectedAvatarPreset == a['id'];
+                  final isSelected = _selectedAvatarPreset == a['id'] && _customPhotoBase64 == null;
 
                   return GestureDetector(
                     onTap: () {
-                      setState(() => _selectedAvatarPreset = a['id'] as String);
+                      setState(() {
+                        _selectedAvatarPreset = a['id'] as String;
+                        _customPhotoBase64 = null;
+                      });
                       setModalState(() {});
                       Navigator.pop(ctx);
                     },
@@ -2234,8 +2475,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _saveProfileChanges() async {
     final name = _profileNameController.text.trim();
     final username = _profileUsernameController.text.trim();
+    final nip = _profileNipController.text.trim();
+    final jabatan = _profileJabatanController.text.trim();
+    final divisi = _profileDivisiController.text.trim();
     final email = _profileEmailController.text.trim();
     final phone = _profilePhoneController.text.trim();
+    final ttl = _profileTtlController.text.trim();
+    final alamat = _profileAlamatController.text.trim();
     final bio = _profileBioController.text.trim();
     final newPass = _newPasswordController.text.trim();
     final confirmPass = _confirmPasswordController.text.trim();
@@ -2279,10 +2525,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final updated = await ApiService.updateProfile(
       name: name,
       username: username,
+      nip: nip,
+      jabatan: jabatan,
+      divisi: divisi,
       email: email,
       phone: phone,
+      ttl: ttl,
+      alamat: alamat,
       bio: bio,
       avatarPreset: _selectedAvatarPreset,
+      photoBase64: _customPhotoBase64,
+      clearPhoto: _customPhotoBase64 == null,
       newPassword: newPass.isNotEmpty ? newPass : null,
     );
 
@@ -2305,7 +2558,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
               const SizedBox(width: 10),
               Expanded(
-                child: Text('Profil & akun $name berhasil diperbarui!'),
+                child: Text('Biodata & profil pegawai $name berhasil disimpan permanen!'),
               ),
             ],
           ),

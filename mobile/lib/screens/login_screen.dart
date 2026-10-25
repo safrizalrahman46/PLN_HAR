@@ -98,6 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         backgroundColor: Colors.transparent,
         elevation: 0,
         child: Container(
@@ -164,7 +165,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 22),
 
-              // Yellow Primary CTA Button (Matching Reference 1 - FittedBox prevents any overflow)
+              // Yellow Primary CTA Button (FittedBox with MainAxisSize.min prevents any overflow)
               Container(
                 width: double.infinity,
                 height: 50,
@@ -201,11 +202,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     fit: BoxFit.scaleDown,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           'Lanjut ke Dashboard Unit',
                           style: TextStyle(
-                            fontSize: 14.5,
+                            fontSize: 14,
                             fontWeight: FontWeight.w900,
                             color: Color(0xFF002244),
                           ),
@@ -274,12 +276,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.bolt, size: 13, color: Color(0xFFFFD500)),
-                                SizedBox(width: 4),
-                                Text(
+                                Image.asset('assets/images/LOGOPLN.png', width: 14, height: 14, fit: BoxFit.contain),
+                                const SizedBox(width: 5),
+                                const Text(
                                   'PLN NUSA DAYA',
                                   style: TextStyle(
                                     color: Colors.white,
@@ -303,32 +305,29 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 22),
 
-                      // Brand Icon
+                      // Brand Icon (Official LOGOPLN.png)
                       Container(
-                        width: 64,
-                        height: 64,
+                        width: 72,
+                        height: 72,
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: Colors.white,
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 2),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withValues(alpha: 0.25),
-                              blurRadius: 16,
+                              blurRadius: 18,
                               offset: const Offset(0, 4),
                             ),
                           ],
                         ),
-                        child: Center(
-                          child: Container(
-                            width: 48,
-                            height: 48,
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                colors: [Color(0xFF008CC8), Color(0xFF00A2E8)],
-                              ),
-                            ),
-                            child: const Icon(Icons.bolt_rounded, size: 28, color: Color(0xFFFFD500)),
+                        child: ClipOval(
+                          child: Image.asset(
+                            'assets/images/LOGOPLN.png',
+                            width: 56,
+                            height: 56,
+                            fit: BoxFit.contain,
                           ),
                         ),
                       ),

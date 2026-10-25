@@ -71,18 +71,20 @@ class _RiwayatHARScreenState extends State<RiwayatHARScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Export Laporan & Berita Acara',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppTheme.textDark),
-                      ),
-                      Text(
-                        '${currentFiltered.length} Data Siap Diekspor',
-                        style: const TextStyle(fontSize: 12, color: AppTheme.outline, fontWeight: FontWeight.w600),
-                      ),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Export Laporan & Berita Acara',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppTheme.textDark),
+                        ),
+                        Text(
+                          '${currentFiltered.length} Data Siap Diekspor',
+                          style: const TextStyle(fontSize: 12, color: AppTheme.outline, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

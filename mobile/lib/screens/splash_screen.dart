@@ -112,12 +112,12 @@ class _SplashScreenState extends State<SplashScreen> {
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                                 ),
-                                child: const Row(
+                                child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.bolt, size: 14, color: Color(0xFFFFD500)),
-                                    SizedBox(width: 4),
-                                    Text(
+                                    Image.asset('assets/images/LOGOPLN.png', width: 14, height: 14, fit: BoxFit.contain),
+                                    const SizedBox(width: 5),
+                                    const Text(
                                       'PLN NUSA DAYA',
                                       style: TextStyle(
                                         color: Colors.white,
@@ -467,28 +467,30 @@ class _SplashScreenState extends State<SplashScreen> {
           ),
         ),
 
-        // Center Floating Pulse Avatar (Jobsly Style with + or Bolt)
+        // Center Floating Pulse Avatar (Official LOGOPLN.png)
         Container(
-          width: 56,
-          height: 56,
+          width: 60,
+          height: 60,
+          padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              colors: [Color(0xFFFFD500), Color(0xFFFF9E00)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: Colors.white,
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.25),
-                blurRadius: 16,
+                blurRadius: 18,
                 offset: const Offset(0, 4),
               ),
             ],
             border: Border.all(color: Colors.white, width: 3),
           ),
-          child: const Center(
-            child: Icon(Icons.bolt_rounded, size: 30, color: Color(0xFF002F55)),
+          child: ClipOval(
+            child: Image.asset(
+              'assets/images/LOGOPLN.png',
+              width: 44,
+              height: 44,
+              fit: BoxFit.contain,
+            ),
           ),
         ),
       ],

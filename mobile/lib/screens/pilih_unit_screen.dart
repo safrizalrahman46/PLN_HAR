@@ -148,8 +148,8 @@ class _PilihUnitScreenState extends State<PilihUnitScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.bolt, size: 14, color: AppTheme.primary),
-                  const SizedBox(width: 4),
+                  Image.asset('assets/images/LOGOPLN.png', width: 14, height: 14, fit: BoxFit.contain),
+                  const SizedBox(width: 5),
                   Text(
                     _currentUser!.role.toUpperCase(),
                     style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: AppTheme.primary),
@@ -186,24 +186,26 @@ class _PilihUnitScreenState extends State<PilihUnitScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Daftar Unit Pembangkit',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppTheme.textDark,
-                                    letterSpacing: -0.3,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Daftar Unit Pembangkit',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppTheme.textDark,
+                                      letterSpacing: -0.3,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${filteredUnits.length} Unit Tersedia • Ketuk untuk memilih',
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.outline),
-                                ),
-                              ],
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${filteredUnits.length} Unit Tersedia • Ketuk untuk memilih',
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.outline),
+                                  ),
+                                ],
+                              ),
                             ),
                             Container(
                               decoration: BoxDecoration(
@@ -287,17 +289,32 @@ class _PilihUnitScreenState extends State<PilihUnitScreen> {
                 Row(
                   children: [
                     Container(
-                      width: 50,
-                      height: 50,
+                      width: 52,
+                      height: 52,
+                      padding: const EdgeInsets.all(7),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
+                        color: Colors.white,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.35),
-                          width: 1.5,
+                          color: Colors.white.withValues(alpha: 0.8),
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/images/LOGOPLN.png',
+                          width: 36,
+                          height: 36,
+                          fit: BoxFit.contain,
                         ),
                       ),
-                      child: const Icon(Icons.power_rounded, color: Colors.white, size: 28),
                     ),
                     const SizedBox(width: 14),
                     Expanded(

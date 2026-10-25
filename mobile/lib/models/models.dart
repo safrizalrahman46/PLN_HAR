@@ -10,6 +10,11 @@ class User {
   final String email;
   final String? photoBase64;
   final String? password;
+  final String nip;
+  final String jabatan;
+  final String divisi;
+  final String alamat;
+  final String ttl;
 
   User({
     required this.username,
@@ -23,6 +28,11 @@ class User {
     this.email = 'teknisi.har@nusadaya.pln.co.id',
     this.photoBase64,
     this.password = 'password',
+    this.nip = '199504122019031001',
+    this.jabatan = 'Teknisi Keandalan & HAR PLTD',
+    this.divisi = 'PLN Nusa Daya - Divisi Pembangkitan',
+    this.alamat = 'Jl. Mulawarman No. 45, Kalimantan Timur',
+    this.ttl = 'Balikpapan, 12 April 1995',
   });
 
   User copyWith({
@@ -37,6 +47,11 @@ class User {
     String? email,
     String? photoBase64,
     String? password,
+    String? nip,
+    String? jabatan,
+    String? divisi,
+    String? alamat,
+    String? ttl,
   }) {
     return User(
       username: username ?? this.username,
@@ -50,6 +65,11 @@ class User {
       email: email ?? this.email,
       photoBase64: photoBase64 ?? this.photoBase64,
       password: password ?? this.password,
+      nip: nip ?? this.nip,
+      jabatan: jabatan ?? this.jabatan,
+      divisi: divisi ?? this.divisi,
+      alamat: alamat ?? this.alamat,
+      ttl: ttl ?? this.ttl,
     );
   }
 
@@ -66,6 +86,11 @@ class User {
       email: json['email'] ?? 'teknisi.har@nusadaya.pln.co.id',
       photoBase64: json['photo_base64'],
       password: json['password'] ?? 'password',
+      nip: json['nip'] ?? '199504122019031001',
+      jabatan: json['jabatan'] ?? 'Teknisi Keandalan & HAR PLTD',
+      divisi: json['divisi'] ?? 'PLN Nusa Daya - Divisi Pembangkitan',
+      alamat: json['alamat'] ?? 'Jl. Mulawarman No. 45, Kalimantan Timur',
+      ttl: json['ttl'] ?? 'Balikpapan, 12 April 1995',
     );
   }
 
@@ -81,6 +106,11 @@ class User {
     'email': email,
     if (photoBase64 != null) 'photo_base64': photoBase64,
     if (password != null) 'password': password,
+    'nip': nip,
+    'jabatan': jabatan,
+    'divisi': divisi,
+    'alamat': alamat,
+    'ttl': ttl,
   };
 }
 
