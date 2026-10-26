@@ -12,6 +12,13 @@ import 'daftar_mesin_screen.dart';
 import 'pilih_unit_screen.dart';
 import 'login_screen.dart';
 import 'detail_har_screen.dart';
+import 'lapor_amc_screen.dart';
+import 'presensi_gps_screen.dart';
+import 'stok_part_screen.dart';
+import 'sop_k3_screen.dart';
+import 'catat_stand_kwh_screen.dart';
+import 'notifikasi_screen.dart';
+import 'menu_operasi_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -467,11 +474,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               padding: EdgeInsets.zero,
                               icon: const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 20),
                               onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Pemberitahuan: Seluruh jadwal HAR shift aktif telah terverifikasi.'),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const NotifikasiScreen()),
                                 );
                               },
                             ),
@@ -701,13 +706,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _buildQuickCategoryItem(
                     icon: Icons.emergency_rounded,
                     label: 'Lapor AMC',
-                    badgeColor: const Color(0xFFF59E0B),
+                    badgeColor: const Color(0xFFEF4444),
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Layanan Pelaporan AMC Siaga 24 Jam.'),
-                          behavior: SnackBarBehavior.floating,
-                        ),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LaporAMCScreen()),
                       );
                     },
                   ),
@@ -840,20 +843,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       {
         'title': 'Lapor Gangguan\n(AMC)',
         'icon': Icons.warning_amber_rounded,
-        'onTap': () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Laporan Anomali/Gangguan: Seluruh unit beroperasi normal.'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+        'onTap': () async {
+          await Navigator.push(context, MaterialPageRoute(builder: (_) => const LaporAMCScreen()));
+          _loadDashboardData();
         },
       },
       {
         'title': 'Catat Stand\nKWH & BBM',
         'icon': Icons.electric_meter_rounded,
         'onTap': () async {
-          await Navigator.push(context, MaterialPageRoute(builder: (_) => const BuatHARScreen()));
+          await Navigator.push(context, MaterialPageRoute(builder: (_) => const CatatStandKwhScreen()));
           _loadDashboardData();
         },
       },
@@ -875,13 +874,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       {
         'title': 'Presensi\nMandiri GPS',
         'icon': Icons.pin_drop_rounded,
-        'onTap': () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Presensi GPS Geofence: Berada di dalam radius unit kerja.'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+        'onTap': () async {
+          await Navigator.push(context, MaterialPageRoute(builder: (_) => const PresensiGpsScreen()));
         },
       },
       {
@@ -892,31 +886,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
       {
         'title': 'Stok Part &\nOli Pelumas',
         'icon': Icons.inventory_2_rounded,
-        'onTap': () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Gudang Suku Cadang: Stok oli pelumas dan filter tersedia.'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+        'onTap': () async {
+          await Navigator.push(context, MaterialPageRoute(builder: (_) => const StokPartScreen()));
         },
       },
       {
         'title': 'Pedoman K3\n& SOP Mesin',
         'icon': Icons.menu_book_rounded,
-        'onTap': () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Buku Pedoman K3 & SOP Operasi PLTD telah diunduh.'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+        'onTap': () async {
+          await Navigator.push(context, MaterialPageRoute(builder: (_) => const SopK3Screen()));
         },
       },
       {
         'title': 'Menu Operasi\nLainnya',
         'icon': Icons.apps_rounded,
-        'onTap': _showUpdateHARModal,
+        'onTap': () async {
+          await Navigator.push(context, MaterialPageRoute(builder: (_) => MenuOperasiScreen(onNavigateTab: _onNavTap)));
+        },
       },
     ];
 
@@ -1036,7 +1022,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             TextButton(
-              onPressed: () {},
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => MenuOperasiScreen(onNavigateTab: _onNavTap)),
+                );
+              },
               child: const Text(
                 'Lihat Semua',
                 style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Color(0xFF00A2E8)),
@@ -1057,77 +1048,89 @@ class _DashboardScreenState extends State<DashboardScreen> {
               final ev = events[index];
               final gradient = ev['gradient'] as List<Color>;
 
-              return Container(
-                width: 270,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: gradient,
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: gradient.first.withValues(alpha: 0.25),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
+              return InkWell(
+                onTap: () {
+                  if (index == 0) {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const LaporAMCScreen()));
+                  } else if (index == 1) {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const BuatHARScreen()));
+                  } else {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SopK3Screen()));
+                  }
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  width: 270,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: gradient,
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            ev['tag'] as String,
-                            style: const TextStyle(
-                              fontSize: 8.5,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                              letterSpacing: 0.3,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: gradient.first.withValues(alpha: 0.25),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              ev['tag'] as String,
+                              style: const TextStyle(
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                letterSpacing: 0.3,
+                              ),
                             ),
                           ),
-                        ),
-                        Icon(ev['icon'] as IconData, color: Colors.white70, size: 18),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          ev['title'] as String,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
+                          Icon(ev['icon'] as IconData, color: Colors.white70, size: 18),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            ev['title'] as String,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          ev['desc'] as String,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            color: Colors.white.withValues(alpha: 0.85),
-                            height: 1.25,
+                          const SizedBox(height: 2),
+                          Text(
+                            ev['desc'] as String,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: Colors.white.withValues(alpha: 0.85),
+                              height: 1.25,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
@@ -2642,45 +2645,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // K3 Zero Accident Policy Modal
+  // K3 Zero Accident Policy -> Now navigates directly to SopK3Screen
   void _showK3PolicyModal() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.shield_rounded, color: Color(0xFF10B981)),
-            SizedBox(width: 8),
-            Text('Standar K3 & Zero Accident', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-          ],
-        ),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('1. Wajib memakai APD lengkap (Helm, Sepatu Safety, Sarung Tangan, Ear Plug).', style: TextStyle(fontSize: 12, height: 1.4)),
-            SizedBox(height: 6),
-            Text('2. Patuhi SOP LOTO (Lockout / Tagout) sebelum memeriksa komponen kelistrikan & genset.', style: TextStyle(fontSize: 12, height: 1.4)),
-            SizedBox(height: 6),
-            Text('3. Pastikan ventilasi udara memadai dan APAR dalam posisi siap pakai di ruang PLTD.', style: TextStyle(fontSize: 12, height: 1.4)),
-            SizedBox(height: 6),
-            Text('4. Laporkan setiap anomali getaran, kebocoran oli, atau suhu abnormal kepada SPV.', style: TextStyle(fontSize: 12, height: 1.4)),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00A2E8),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: const Text('Saya Mengerti', style: TextStyle(fontWeight: FontWeight.w800)),
-          ),
-        ],
-      ),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const SopK3Screen()));
   }
 
   Widget _buildProfileTile({
